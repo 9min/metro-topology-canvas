@@ -36,3 +36,26 @@ export interface InterpolatedTrain {
 	fromStationId: string;
 	toStationId: string;
 }
+
+/** 애니메이션 중인 열차 상태 (TrainAnimator 내부용) */
+export interface AnimatedTrainState {
+	trainNo: string;
+	line: number;
+	direction: "상행" | "하행";
+	/** 애니메이션 시작 좌표 */
+	startX: number;
+	startY: number;
+	/** 애니메이션 목표 좌표 */
+	targetX: number;
+	targetY: number;
+	/** 현재 렌더링 좌표 */
+	currentX: number;
+	currentY: number;
+	/** 애니메이션 시작 시각 (ms) */
+	startTime: number;
+	/** 애니메이션 지속 시간 (ms) */
+	duration: number;
+	/** 출발/도착 역 ID */
+	fromStationId: string;
+	toStationId: string;
+}

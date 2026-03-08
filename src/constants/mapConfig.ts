@@ -32,3 +32,9 @@ export const TRAIN_PARTICLE_RADIUS = 4;
 
 /** API 폴링 주기 (ms) — 90초 (하루 ~960건, 1000건 한도 내) */
 export const POLLING_INTERVAL_MS = 90_000;
+
+/** 열차 애니메이션 지속 시간 (ms) — 폴링 간격의 대부분을 부드럽게 채운다 */
+export const TRAIN_ANIMATION_DURATION_MS = 2_000;
+
+/** 신규 열차 페이드인 시간 (ms) */
+export const TRAIN_FADEIN_MS = 500;
