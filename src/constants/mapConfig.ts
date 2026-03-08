@@ -1,11 +1,11 @@
 import type { MapBounds } from "@/types/map";
 
-/** 서울 지하철 네트워크 GPS 경계 범위 */
+/** 서울 지하철 네트워크 GPS 경계 범위 (수도권 전체) */
 export const MAP_BOUNDS: MapBounds = {
-	minLon: 126.78,
-	maxLon: 127.2,
-	minLat: 37.44,
-	maxLat: 37.7,
+	minLon: 126.6,
+	maxLon: 127.25,
+	minLat: 37.25,
+	maxLat: 37.96,
 };
 
 /** 기본 캔버스 크기 */
@@ -26,3 +26,9 @@ export const STATION_RADIUS_HOVER = 9;
 
 /** 노선 두께 (px) */
 export const LINE_WIDTH = 3;
+
+/** 열차 입자 반지름 (px) */
+export const TRAIN_PARTICLE_RADIUS = 4;
+
+/** API 폴링 주기 (ms) — 90초 (하루 ~960건, 1000건 한도 내) */
+export const POLLING_INTERVAL_MS = 90_000;

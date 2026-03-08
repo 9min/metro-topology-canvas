@@ -8,6 +8,7 @@ export interface PixiScene {
 	viewport: Container;
 	linksLayer: Container;
 	stationsLayer: Container;
+	trainsLayer: Container;
 	labelsLayer: Container;
 	destroy: () => void;
 }
@@ -39,15 +40,17 @@ export async function createPixiApp(canvas: HTMLCanvasElement): Promise<PixiScen
 	const linksLayer = new Container();
 	const stationsLayer = new Container();
 	stationsLayer.eventMode = "static";
+	const trainsLayer = new Container();
 	const labelsLayer = new Container();
 
 	viewport.addChild(linksLayer);
 	viewport.addChild(stationsLayer);
+	viewport.addChild(trainsLayer);
 	viewport.addChild(labelsLayer);
 
 	const destroy = (): void => {
 		app.destroy(false, { children: true });
 	};
 
-	return { app, canvas, viewport, linksLayer, stationsLayer, labelsLayer, destroy };
+	return { app, canvas, viewport, linksLayer, stationsLayer, trainsLayer, labelsLayer, destroy };
 }
