@@ -61,20 +61,14 @@ describe("fetchLineTrains", () => {
 	});
 
 	it("네트워크 에러 시 빈 배열을 반환한다", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockRejectedValue(new Error("Network error")),
-		);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network error")));
 
 		const trains = await fetchLineTrains(1);
 		expect(trains).toEqual([]);
 	});
 
 	it("HTTP 에러 시 빈 배열을 반환한다", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({ ok: false, status: 500 }),
-		);
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
 
 		const trains = await fetchLineTrains(1);
 		expect(trains).toEqual([]);

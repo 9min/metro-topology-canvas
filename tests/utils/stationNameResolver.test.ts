@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
+import type { Station, StationLink } from "@/types/station";
 import {
 	buildAdjacencyMap,
 	buildStationNameMap,
 	resolveStationId,
 } from "@/utils/stationNameResolver";
-import type { Station, StationLink } from "@/types/station";
 
 const MOCK_STATIONS: Station[] = [
 	{ id: "L1S08", name: "서울역", line: 1, x: 126.973, y: 37.555 },

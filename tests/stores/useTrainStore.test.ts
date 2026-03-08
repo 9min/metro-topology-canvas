@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { useTrainStore } from "@/stores/useTrainStore";
 import type { ScreenCoord } from "@/types/map";
 import type { TrainPosition } from "@/types/train";
 import type { AdjacencyInfo } from "@/utils/stationNameResolver";
-import { useTrainStore } from "@/stores/useTrainStore";
 
 const SCREEN_MAP = new Map<string, ScreenCoord>([
 	["S01", { x: 100, y: 200 }],
@@ -62,9 +62,9 @@ describe("useTrainStore", () => {
 	});
 
 	it("존재하지 않는 역 ID의 열차는 보간 결과에서 제외한다", () => {
-		const unknownTrains: TrainPosition[] = [
-			{ ...MOCK_TRAINS[0]!, stationId: "UNKNOWN" },
-		];
+		const baseTrain = MOCK_TRAINS[0];
+		if (baseTrain === undefined) throw new Error("테스트 데이터 오류");
+		const unknownTrains: TrainPosition[] = [{ ...baseTrain, stationId: "UNKNOWN" }];
 		useTrainStore.getState().updatePositions(unknownTrains, SCREEN_MAP, ADJ_MAP);
 		const state = useTrainStore.getState();
 
