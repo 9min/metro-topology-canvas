@@ -1,5 +1,7 @@
-import type { Container } from "pixi.js";
+import { type Container, Graphics } from "pixi.js";
 import { TRAIN_ANIMATION_DURATION_MS } from "@/constants/mapConfig";
+import { useStationStore } from "@/stores/useStationStore";
+import { useTrainStore } from "@/stores/useTrainStore";
 import type { AnimatedTrainState, InterpolatedTrain } from "@/types/train";
 import { easeInOutCubic } from "@/utils/easing";
 import { drawAnimatedTrains } from "../objects/TrainParticle";
@@ -12,10 +14,22 @@ import { drawAnimatedTrains } from "../objects/TrainParticle";
 export class TrainAnimator {
 	private states: Map<string, AnimatedTrainState> = new Map();
 	private trainsLayer: Container | null = null;
+	private graphicsPool: Map<string, Graphics> = new Map();
+	private onTrainTap: ((trainNo: string) => void) | null = null;
 
 	/** 렌더링 대상 레이어를 설정한다 */
 	setLayer(layer: Container): void {
 		this.trainsLayer = layer;
+	}
+
+	/** 열차 클릭 콜백을 등록한다 */
+	setOnTrainTap(callback: (trainNo: string) => void): void {
+		this.onTrainTap = callback;
+	}
+
+	/** 특정 열차의 현재 애니메이션 상태를 반환한다 */
+	getTrainState(trainNo: string): AnimatedTrainState | undefined {
+		return this.states.get(trainNo);
 	}
 
 	/**
@@ -63,10 +77,15 @@ export class TrainAnimator {
 			}
 		}
 
-		// 사라진 열차 제거
+		// 사라진 열차 제거 (states + pool)
 		for (const key of this.states.keys()) {
 			if (!newKeys.has(key)) {
 				this.states.delete(key);
+				const gfx = this.graphicsPool.get(key);
+				if (gfx !== undefined && this.trainsLayer !== null) {
+					this.trainsLayer.removeChild(gfx);
+				}
+				this.graphicsPool.delete(key);
 			}
 		}
 	}
@@ -98,12 +117,23 @@ export class TrainAnimator {
 			trainList.push(state);
 		}
 
-		drawAnimatedTrains(this.trainsLayer, trainList);
+		const selectedTrainNo = useTrainStore.getState().selectedTrainNo;
+		const selectedStation = useStationStore.getState().selectedStation;
+
+		drawAnimatedTrains(
+			this.trainsLayer,
+			trainList,
+			this.graphicsPool,
+			selectedTrainNo,
+			selectedStation?.id ?? null,
+			this.onTrainTap ?? ((_no: string) => {}),
+		);
 	}
 
 	/** 전체 상태를 초기화한다 */
 	clear(): void {
 		this.states.clear();
+		this.graphicsPool.clear();
 		if (this.trainsLayer !== null) {
 			this.trainsLayer.removeChildren();
 		}
