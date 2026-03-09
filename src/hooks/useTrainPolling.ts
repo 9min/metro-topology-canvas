@@ -6,6 +6,10 @@ import type { ScreenCoord } from "@/types/map";
 import type { Station } from "@/types/station";
 import type { TrainPosition } from "@/types/train";
 import {
+	isOperatingHours,
+	msUntilOperatingStart,
+} from "@/utils/operatingHours";
+import {
 	type AdjacencyInfo,
 	buildStationNameMap,
 	resolveStationId,
@@ -68,18 +72,39 @@ export function useTrainPolling(
 		setPollingActive(false);
 	}, [setPollingActive]);
 
+	// 운행 시간이면 폴링을 시작하고, 비운행 시간이면 다음 운행 시작까지 대기
+	const scheduleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	const startIfOperating = useCallback(() => {
+		if (isOperatingHours()) {
+			startPolling();
+		} else {
+			stopPolling();
+			// 다음 운행 시작 시각에 자동 재개
+			const delay = msUntilOperatingStart();
+			scheduleRef.current = setTimeout(() => {
+				scheduleRef.current = null;
+				startIfOperating();
+			}, delay);
+		}
+	}, [startPolling, stopPolling]);
+
 	// 마운트 시 폴링 시작, 언마운트 시 정리
 	useEffect(() => {
 		// stationScreenMap이 비어있으면 아직 준비되지 않음
 		if (stationScreenMap.size === 0) return;
 
-		startPolling();
+		startIfOperating();
 
 		const handleVisibility = (): void => {
 			if (document.hidden) {
 				stopPolling();
+				if (scheduleRef.current !== null) {
+					clearTimeout(scheduleRef.current);
+					scheduleRef.current = null;
+				}
 			} else {
-				startPolling();
+				startIfOperating();
 			}
 		};
 
@@ -87,7 +112,11 @@ export function useTrainPolling(
 
 		return () => {
 			stopPolling();
+			if (scheduleRef.current !== null) {
+				clearTimeout(scheduleRef.current);
+				scheduleRef.current = null;
+			}
 			document.removeEventListener("visibilitychange", handleVisibility);
 		};
-	}, [startPolling, stopPolling, stationScreenMap]);
+	}, [startIfOperating, stopPolling, stationScreenMap]);
 }
