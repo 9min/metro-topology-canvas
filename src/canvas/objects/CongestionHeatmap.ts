@@ -1,4 +1,4 @@
-import { Graphics } from "pixi.js";
+import type { Graphics } from "pixi.js";
 import { CONGESTION_LINE_WIDTH_FACTOR, LINE_WIDTH } from "@/constants/mapConfig";
 import type { ScreenCoord } from "@/types/map";
 import type { StationLink } from "@/types/station";
@@ -69,9 +69,6 @@ export function drawCongestionHeatmap(
 		const color = congestionColor(count);
 		const width = LINE_WIDTH * CONGESTION_LINE_WIDTH_FACTOR;
 
-		heatmapGraphics
-			.moveTo(from.x, from.y)
-			.lineTo(to.x, to.y)
-			.stroke({ width, color, alpha: 0.5 });
+		heatmapGraphics.moveTo(from.x, from.y).lineTo(to.x, to.y).stroke({ width, color, alpha: 0.5 });
 	}
 }

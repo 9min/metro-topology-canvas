@@ -1,9 +1,6 @@
-import { type Container, Graphics } from "pixi.js";
+import type { Container, Graphics } from "pixi.js";
 import { LINE_COLORS } from "@/constants/lineColors";
-import {
-	TRAIL_MAX_ALPHA,
-	TRAIL_MAX_WIDTH,
-} from "@/constants/mapConfig";
+import { TRAIL_MAX_ALPHA, TRAIL_MAX_WIDTH } from "@/constants/mapConfig";
 import type { AnimatedTrainState } from "@/types/train";
 
 export interface TrailQueue {
@@ -69,10 +66,7 @@ export function drawTrails(
 			const alpha = t * TRAIL_MAX_ALPHA;
 			const width = Math.max(0.5, t * TRAIL_MAX_WIDTH);
 
-			trailGraphics
-				.moveTo(prev.x, prev.y)
-				.lineTo(curr.x, curr.y)
-				.stroke({ width, color, alpha });
+			trailGraphics.moveTo(prev.x, prev.y).lineTo(curr.x, curr.y).stroke({ width, color, alpha });
 		}
 	}
 }
@@ -80,10 +74,7 @@ export function drawTrails(
 /**
  * 더 이상 활성 상태가 아닌 열차의 트레일 큐를 정리한다.
  */
-export function pruneTrails(
-	trailMap: Map<string, TrailQueue>,
-	activeTrainNos: Set<string>,
-): void {
+export function pruneTrails(trailMap: Map<string, TrailQueue>, activeTrainNos: Set<string>): void {
 	for (const key of trailMap.keys()) {
 		if (!activeTrainNos.has(key)) {
 			trailMap.delete(key);
