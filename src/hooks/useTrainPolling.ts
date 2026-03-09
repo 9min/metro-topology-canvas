@@ -5,10 +5,7 @@ import { useTrainStore } from "@/stores/useTrainStore";
 import type { ScreenCoord } from "@/types/map";
 import type { Station } from "@/types/station";
 import type { TrainPosition } from "@/types/train";
-import {
-	isOperatingHours,
-	msUntilOperatingStart,
-} from "@/utils/operatingHours";
+import { isOperatingHours, msUntilOperatingStart } from "@/utils/operatingHours";
 import {
 	type AdjacencyInfo,
 	buildStationNameMap,
