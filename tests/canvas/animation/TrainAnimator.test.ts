@@ -10,6 +10,10 @@ function createMockContainer() {
 		addChild(child: { x: number; y: number; visible: boolean }) {
 			children.push(child);
 		},
+		removeChild(child: { x: number; y: number; visible: boolean }) {
+			const idx = children.indexOf(child);
+			if (idx !== -1) children.splice(idx, 1);
+		},
 		removeChildren() {
 			children.length = 0;
 		},
@@ -71,9 +75,33 @@ describe("TrainAnimator", () => {
 		expect(animator.count).toBe(0);
 	});
 
+	it("clear() 후 pool이 비워진다 (count 0으로 확인)", () => {
+		animator.setTargets([MOCK_TRAIN]);
+		animator.clear();
+		// pool이 비워지면 동일 열차를 재추가해도 count는 정상
+		animator.setTargets([MOCK_TRAIN]);
+		expect(animator.count).toBe(1);
+	});
+
 	it("layer가 설정되지 않으면 update()가 에러 없이 반환한다", () => {
 		const noLayerAnimator = new TrainAnimator();
 		noLayerAnimator.setTargets([MOCK_TRAIN]);
 		expect(() => noLayerAnimator.update()).not.toThrow();
+	});
+
+	it("getTrainState로 현재 열차 상태를 조회한다", () => {
+		animator.setTargets([MOCK_TRAIN]);
+		const state = animator.getTrainState("1001");
+		expect(state).toBeDefined();
+		expect(state?.trainNo).toBe("1001");
+	});
+
+	it("존재하지 않는 열차의 getTrainState는 undefined를 반환한다", () => {
+		expect(animator.getTrainState("NONE")).toBeUndefined();
+	});
+
+	it("setOnTrainTap으로 콜백을 등록할 수 있다", () => {
+		const cb = vi.fn();
+		expect(() => animator.setOnTrainTap(cb)).not.toThrow();
 	});
 });

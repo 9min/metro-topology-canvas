@@ -41,6 +41,7 @@ export async function createPixiApp(canvas: HTMLCanvasElement): Promise<PixiScen
 	const stationsLayer = new Container();
 	stationsLayer.eventMode = "static";
 	const trainsLayer = new Container();
+	trainsLayer.eventMode = "static";
 	const labelsLayer = new Container();
 
 	viewport.addChild(linksLayer);

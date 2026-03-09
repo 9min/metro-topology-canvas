@@ -2,8 +2,58 @@ import type { Container } from "pixi.js";
 import { Graphics } from "pixi.js";
 import { LINE_COLORS } from "@/constants/lineColors";
 import { STATION_RADIUS, STATION_RADIUS_HOVER } from "@/constants/mapConfig";
+import { useStationStore } from "@/stores/useStationStore";
 import type { ScreenCoord } from "@/types/map";
 import type { Station } from "@/types/station";
+
+/** 선택 역 기준으로 인접 역 ID 집합을 반환한다 */
+function buildAdjacentIds(selectedStationId: string): Set<string> {
+	const links = useStationStore.getState().links;
+	const adjacentIds = new Set<string>();
+	for (const link of links) {
+		if (link.source === selectedStationId) adjacentIds.add(link.target);
+		if (link.target === selectedStationId) adjacentIds.add(link.source);
+	}
+	return adjacentIds;
+}
+
+/** 역의 선택 상태에 따른 alpha 값을 반환한다 */
+function stationAlpha(
+	stationId: string,
+	selectedStationId: string,
+	adjacentIds: Set<string>,
+): number {
+	if (stationId === selectedStationId) return 1.0;
+	if (adjacentIds.has(stationId)) return 0.6;
+	return 0.15;
+}
+
+/**
+ * 선택된 역 기준으로 역 Graphics의 alpha를 업데이트한다.
+ * 선택 없음: 전체 1.0 / 선택 있음: 선택 역 1.0, 인접 역 0.6, 나머지 0.15
+ */
+export function updateStationAlpha(
+	stationsLayer: Container,
+	stations: Station[],
+	selectedStationId: string | null,
+): void {
+	if (selectedStationId === null) {
+		for (const child of stationsLayer.children) {
+			child.alpha = 1.0;
+		}
+		return;
+	}
+
+	const adjacentIds = buildAdjacentIds(selectedStationId);
+
+	for (let i = 0; i < stations.length; i++) {
+		const station = stations[i];
+		if (station === undefined) continue;
+		const child = stationsLayer.children[i];
+		if (child === undefined) continue;
+		child.alpha = stationAlpha(station.id, selectedStationId, adjacentIds);
+	}
+}
 
 /**
  * 모든 역을 stationsLayer에 렌더링하고 클릭 이벤트를 연결한다.

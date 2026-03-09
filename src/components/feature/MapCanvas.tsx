@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
 import { TrainAnimator } from "@/canvas/animation/TrainAnimator";
 import { handleStationTap } from "@/canvas/interactions/stationClick";
+import { handleTrainTap } from "@/canvas/interactions/trainClick";
 import { setupZoomPan } from "@/canvas/interactions/zoomPan";
 import { drawLinks } from "@/canvas/objects/LineLink";
-import { drawAllStations } from "@/canvas/objects/StationNode";
+import { drawAllStations, updateStationAlpha } from "@/canvas/objects/StationNode";
 import linksData from "@/data/links.json";
 import stationsData from "@/data/stations.json";
 import { useCoordTransform } from "@/hooks/useCoordTransform";
@@ -27,9 +28,12 @@ export function MapCanvas() {
 	const { stationScreenMap } = useCoordTransform(STATIONS);
 	const initStations = useStationStore((state) => state.initStations);
 	const interpolatedTrains = useTrainStore((state) => state.interpolatedTrains);
+	const selectedStation = useStationStore((state) => state.selectedStation);
+	const selectedTrainNo = useTrainStore((state) => state.selectedTrainNo);
 
 	const adjacencyMap = useMemo(() => buildAdjacencyMap(LINKS), []);
 	const animatorRef = useRef<TrainAnimator | null>(null);
+	const selectedTrainNoRef = useRef<string | null>(null);
 
 	// 역/링크 데이터를 스토어에 등록
 	useEffect(() => {
@@ -49,10 +53,21 @@ export function MapCanvas() {
 		// TrainAnimator 초기화 및 ticker 등록
 		const animator = new TrainAnimator();
 		animator.setLayer(scene.trainsLayer);
+		animator.setOnTrainTap(handleTrainTap);
 		animatorRef.current = animator;
 
 		const tickerCallback = (): void => {
 			animator.update();
+
+			// 선택된 열차 카메라 추적
+			const trackedNo = selectedTrainNoRef.current;
+			if (trackedNo !== null) {
+				const state = animator.getTrainState(trackedNo);
+				if (state !== undefined) {
+					scene.viewport.x = window.innerWidth / 2 - state.currentX * scene.viewport.scale.x;
+					scene.viewport.y = window.innerHeight / 2 - state.currentY * scene.viewport.scale.y;
+				}
+			}
 		};
 		scene.app.ticker.add(tickerCallback);
 
@@ -66,11 +81,24 @@ export function MapCanvas() {
 		};
 	}, [scene, stationScreenMap]);
 
+	// selectedTrainNo 변경 시 ref 동기화
+	useEffect(() => {
+		selectedTrainNoRef.current = selectedTrainNo;
+	}, [selectedTrainNo]);
+
 	// 폴링 데이터가 갱신되면 애니메이터에 새 목표를 전달
 	useEffect(() => {
 		if (animatorRef.current === null) return;
 		animatorRef.current.setTargets(interpolatedTrains);
 	}, [interpolatedTrains]);
+
+	// 역 선택 변경 시 linksLayer 딤 + stationAlpha 업데이트
+	useEffect(() => {
+		if (scene === null) return;
+		const active = selectedStation !== null;
+		scene.linksLayer.alpha = active ? 0.2 : 1.0;
+		updateStationAlpha(scene.stationsLayer, STATIONS, selectedStation?.id ?? null);
+	}, [scene, selectedStation]);
 
 	return <div ref={containerRef} className="h-full w-full" />;
 }

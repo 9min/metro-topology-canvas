@@ -37,43 +37,61 @@ export function createTrainGraphics(line: number): Graphics | null {
 	return gfx;
 }
 
+/** 선택 상태에 따른 열차 alpha 값을 반환한다 (역 선택 > 열차 선택 > 기본) */
+function computeTrainAlpha(
+	trainNo: string,
+	toStationId: string,
+	selectedTrainNo: string | null,
+	selectedStationId: string | null,
+): number {
+	if (selectedStationId !== null) return toStationId === selectedStationId ? 1.0 : 0.15;
+	if (selectedTrainNo !== null) return trainNo === selectedTrainNo ? 1.0 : 0.15;
+	return 1.0;
+}
+
+/** 신규 열차 Graphics를 초기화하고 풀/레이어에 등록한다 */
+function registerTrain(
+	trainsLayer: Container,
+	pool: Map<string, Graphics>,
+	train: AnimatedTrainState,
+	onTrainTap: (trainNo: string) => void,
+): Graphics | null {
+	const created = createTrainGraphics(train.line);
+	if (created === null) return null;
+	created.label = train.trainNo;
+	created.eventMode = "static";
+	created.cursor = "pointer";
+	const trainNo = train.trainNo;
+	created.on("pointertap", () => onTrainTap(trainNo));
+	pool.set(train.trainNo, created);
+	trainsLayer.addChild(created);
+	return created;
+}
+
 /**
  * 애니메이션 상태 배열로부터 열차 입자를 렌더링한다.
- * Graphics 풀링: 기존 자식을 재활용하고, 부족하면 생성, 남으면 숨긴다.
+ * Graphics 풀링: trainNo → Graphics 맵으로 안정적인 열차 identity를 보장한다.
+ * 역/열차 선택 시 나머지 열차의 alpha를 0.15로 dimming한다.
  */
 export function drawAnimatedTrains(
 	trainsLayer: Container,
 	animatedTrains: AnimatedTrainState[],
+	pool: Map<string, Graphics>,
+	selectedTrainNo: string | null,
+	selectedStationId: string | null,
+	onTrainTap: (trainNo: string) => void,
 ): void {
-	const existing = trainsLayer.children;
-
-	for (let i = 0; i < animatedTrains.length; i++) {
-		const train = animatedTrains[i];
-		if (train === undefined) continue;
-
-		let gfx: Graphics;
-
-		if (i < existing.length) {
-			// 기존 Graphics 재활용
-			gfx = existing[i] as Graphics;
-			gfx.visible = true;
-		} else {
-			// 새 Graphics 생성
-			const created = createTrainGraphics(train.line);
-			if (created === null) continue;
-			gfx = created;
-			trainsLayer.addChild(gfx);
-		}
+	for (const train of animatedTrains) {
+		const gfx = pool.get(train.trainNo) ?? registerTrain(trainsLayer, pool, train, onTrainTap);
+		if (gfx === null) continue;
 
 		gfx.x = train.currentX;
 		gfx.y = train.currentY;
-	}
-
-	// 남은 Graphics 숨기기
-	for (let i = animatedTrains.length; i < existing.length; i++) {
-		const child = existing[i];
-		if (child !== undefined) {
-			child.visible = false;
-		}
+		gfx.alpha = computeTrainAlpha(
+			train.trainNo,
+			train.toStationId,
+			selectedTrainNo,
+			selectedStationId,
+		);
 	}
 }

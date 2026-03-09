@@ -10,6 +10,7 @@ interface TrainState {
 	lastFetchedAt: string | null;
 	fetchError: string | null;
 	isPollingActive: boolean;
+	selectedTrainNo: string | null;
 	updatePositions: (
 		positions: TrainPosition[],
 		stationScreenMap: Map<string, ScreenCoord>,
@@ -17,6 +18,7 @@ interface TrainState {
 	) => void;
 	setFetchError: (error: string | null) => void;
 	setPollingActive: (active: boolean) => void;
+	selectTrain: (trainNo: string | null) => void;
 }
 
 export const useTrainStore = create<TrainState>((set) => ({
@@ -25,6 +27,7 @@ export const useTrainStore = create<TrainState>((set) => ({
 	lastFetchedAt: null,
 	fetchError: null,
 	isPollingActive: false,
+	selectedTrainNo: null,
 
 	updatePositions: (positions, stationScreenMap, adjacencyMap) => {
 		const interpolated: InterpolatedTrain[] = [];
@@ -44,4 +47,5 @@ export const useTrainStore = create<TrainState>((set) => ({
 
 	setFetchError: (error) => set({ fetchError: error }),
 	setPollingActive: (active) => set({ isPollingActive: active }),
+	selectTrain: (trainNo) => set({ selectedTrainNo: trainNo }),
 }));

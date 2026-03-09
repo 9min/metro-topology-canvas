@@ -41,6 +41,7 @@ describe("useTrainStore", () => {
 			lastFetchedAt: null,
 			fetchError: null,
 			isPollingActive: false,
+			selectedTrainNo: null,
 		});
 	});
 
@@ -49,6 +50,7 @@ describe("useTrainStore", () => {
 		expect(state.rawPositions).toEqual([]);
 		expect(state.interpolatedTrains).toEqual([]);
 		expect(state.isPollingActive).toBe(false);
+		expect(state.selectedTrainNo).toBeNull();
 	});
 
 	it("updatePositions로 열차 위치를 갱신한다", () => {
@@ -80,5 +82,16 @@ describe("useTrainStore", () => {
 	it("setPollingActive로 폴링 상태를 변경한다", () => {
 		useTrainStore.getState().setPollingActive(true);
 		expect(useTrainStore.getState().isPollingActive).toBe(true);
+	});
+
+	it("selectTrain으로 열차를 선택한다", () => {
+		useTrainStore.getState().selectTrain("1001");
+		expect(useTrainStore.getState().selectedTrainNo).toBe("1001");
+	});
+
+	it("selectTrain(null)로 열차 선택을 해제한다", () => {
+		useTrainStore.getState().selectTrain("1001");
+		useTrainStore.getState().selectTrain(null);
+		expect(useTrainStore.getState().selectedTrainNo).toBeNull();
 	});
 });
