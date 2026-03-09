@@ -1,10 +1,5 @@
 import { Application, Container } from "pixi.js";
-import {
-	CANVAS_HEIGHT,
-	CANVAS_PADDING,
-	CANVAS_WIDTH,
-	MAP_BOUNDS,
-} from "@/constants/mapConfig";
+import { CANVAS_HEIGHT, CANVAS_PADDING, CANVAS_WIDTH, MAP_BOUNDS } from "@/constants/mapConfig";
 
 export interface PixiScene {
 	app: Application;

@@ -39,11 +39,7 @@ export class TrainAnimator {
 	 * 신규 열차는 목표 위치에 즉시 배치한다.
 	 * 사라진 열차는 제거한다.
 	 */
-	setTargets(
-		interpolated: InterpolatedTrain[],
-		duration?: number,
-		linear?: boolean,
-	): void {
+	setTargets(interpolated: InterpolatedTrain[], duration?: number, linear?: boolean): void {
 		const now = performance.now();
 		const animDuration = duration ?? TRAIN_ANIMATION_DURATION_MS;
 		const newKeys = new Set<string>();
