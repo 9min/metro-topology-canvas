@@ -33,7 +33,8 @@ export async function createPixiApp(canvas: HTMLCanvasElement): Promise<PixiScen
 	// 뷰포트 컨테이너 (줌/팬 대상) — 지도를 화면에 맞춰 축소 후 중앙 배치
 	const viewport = new Container();
 	viewport.eventMode = "static";
-	const fitScale = Math.min(window.innerWidth / CANVAS_WIDTH, window.innerHeight / CANVAS_HEIGHT) * 0.95;
+	const fitScale =
+		Math.min(window.innerWidth / CANVAS_WIDTH, window.innerHeight / CANVAS_HEIGHT) * 0.95;
 	viewport.scale.set(fitScale);
 	viewport.x = Math.round((window.innerWidth - CANVAS_WIDTH * fitScale) / 2);
 	viewport.y = Math.round((window.innerHeight - CANVAS_HEIGHT * fitScale) / 2);

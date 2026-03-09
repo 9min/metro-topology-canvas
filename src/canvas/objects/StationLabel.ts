@@ -75,6 +75,19 @@ function markOccupied(occupied: Set<string>, colStart: number, colEnd: number, r
 	}
 }
 
+/** label 태그에서 호선 번호를 추출한다 ("역이름:호선" 형식) */
+function parseLine(tag: string): number {
+	const colonIdx = tag.lastIndexOf(":");
+	if (colonIdx === -1) return -1;
+	return Number(tag.slice(colonIdx + 1));
+}
+
+/** label 태그에서 역 이름 부분의 글자 수를 반환한다 */
+function parseNameLength(tag: string): number {
+	const name = tag.split(":")[0] ?? "";
+	return name.length || 3;
+}
+
 /**
  * 화면 공간 그리드 기반 충돌 감지로 겹치는 레이블을 숨긴다.
  * 매 프레임 ticker에서 호출하며, labelsLayer.alpha > 0일 때만 실행한다.
@@ -87,20 +100,17 @@ export function updateLabelVisibility(
 	activeLines?: Set<number>,
 ): void {
 	const occupied = new Set<string>();
-
 	const invScale = 1 / scale;
 
 	for (const child of labelsLayer.children) {
+		const tag = child.label ?? "";
+
 		// 비활성 노선 레이블 숨김
 		if (activeLines !== undefined) {
-			const tag = child.label ?? "";
-			const colonIdx = tag.lastIndexOf(":");
-			if (colonIdx !== -1) {
-				const line = Number(tag.slice(colonIdx + 1));
-				if (!activeLines.has(line)) {
-					child.visible = false;
-					continue;
-				}
+			const line = parseLine(tag);
+			if (line !== -1 && !activeLines.has(line)) {
+				child.visible = false;
+				continue;
 			}
 		}
 
@@ -116,9 +126,7 @@ export function updateLabelVisibility(
 		}
 
 		// 스크린 공간 기준 레이블 너비 계산 (역 스케일링으로 항상 동일)
-		const namePart = (child.label ?? "").split(":")[0] ?? "";
-		const charCount = namePart.length || 3;
-		const labelW = charCount * CHAR_WIDTH;
+		const labelW = parseNameLength(tag) * CHAR_WIDTH;
 		const colStart = Math.floor((sx - labelW / 2) / GRID_CELL_W);
 		const colEnd = Math.floor((sx + labelW / 2) / GRID_CELL_W);
 		const row = Math.floor(sy / GRID_CELL_H);

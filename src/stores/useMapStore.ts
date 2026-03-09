@@ -1,7 +1,5 @@
 import { create } from "zustand";
 
-const ALL_LINES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-
 /** 현재 활성화된 노선 (나머지는 추후 오픈 예정) */
 const ENABLED_LINES = new Set([1]);
 
