@@ -2,8 +2,7 @@ import type { Container, Graphics } from "pixi.js";
 import { TRAIN_ANIMATION_DURATION_MS } from "@/constants/mapConfig";
 import { useStationStore } from "@/stores/useStationStore";
 import { useTrainStore } from "@/stores/useTrainStore";
-import type { ScreenCoord } from "@/types/map";
-import type { AnimatedTrainState, InterpolatedTrain, PathPoint } from "@/types/train";
+import type { AnimatedTrainState, InterpolatedTrain } from "@/types/train";
 import { easeInOutCubic } from "@/utils/easing";
 import { drawAnimatedTrains } from "../objects/TrainParticle";
 
@@ -17,7 +16,6 @@ export class TrainAnimator {
 	private trainsLayer: Container | null = null;
 	private graphicsPool: Map<string, Graphics> = new Map();
 	private onTrainTap: ((trainNo: string) => void) | null = null;
-	private stationScreenMap: Map<string, ScreenCoord> = new Map();
 
 	/** 렌더링 대상 레이어를 설정한다 */
 	setLayer(layer: Container): void {
@@ -27,11 +25,6 @@ export class TrainAnimator {
 	/** 열차 클릭 콜백을 등록한다 */
 	setOnTrainTap(callback: (trainNo: string) => void): void {
 		this.onTrainTap = callback;
-	}
-
-	/** 역 화면 좌표 맵을 설정한다 (경유점 계산에 사용) */
-	setStationScreenMap(map: Map<string, ScreenCoord>): void {
-		this.stationScreenMap = map;
 	}
 
 	/** 특정 열차의 현재 애니메이션 상태를 반환한다 */

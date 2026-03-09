@@ -38,3 +38,9 @@ export const TRAIN_ANIMATION_DURATION_MS = POLLING_INTERVAL_MS;
 
 /** 신규 열차 페이드인 시간 (ms) */
 export const TRAIN_FADEIN_MS = 500;
+
+/** 시맨틱 줌: 역 이름 레이블 표시 시작 임계 줌 배율 */
+export const LABEL_SHOW_SCALE = 1.2;
+
+/** 시맨틱 줌: 역 이름 레이블 완전 표시 줌 배율 */
+export const LABEL_FULL_SCALE = 2.0;
