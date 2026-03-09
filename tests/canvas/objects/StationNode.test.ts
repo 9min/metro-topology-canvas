@@ -1,4 +1,26 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// pixi.js는 브라우저 환경이 필요하므로 모킹한다
+vi.mock("pixi.js", () => ({
+	Graphics: class {
+		circle() {
+			return this;
+		}
+		fill() {
+			return this;
+		}
+		stroke() {
+			return this;
+		}
+		clear() {
+			return this;
+		}
+		on = vi.fn();
+		eventMode = "none";
+		cursor = "default";
+	},
+}));
+
 import { updateStationAlpha } from "@/canvas/objects/StationNode";
 import { useStationStore } from "@/stores/useStationStore";
 import type { Station, StationLink } from "@/types/station";
@@ -43,7 +65,7 @@ describe("updateStationAlpha", () => {
 		expect(layer.children[2].alpha).toBe(0.15);
 	});
 
-	it("선택 역이 없는 역 ID: 나머지 모두 0.15, 선택 역만 1.0", () => {
+	it("인접 역 없는 역 선택: 선택 역만 1.0, 나머지 0.15", () => {
 		// biome-ignore lint/suspicious/noExplicitAny: 테스트용 모킹
 		const layer = createMockLayer(3) as any;
 		updateStationAlpha(layer, STATIONS, "S03");
