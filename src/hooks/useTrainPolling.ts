@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { POLLING_INTERVAL_MS } from "@/constants/mapConfig";
 import { fetchAllTrains } from "@/services/trainApi";
+import { useSimulationStore } from "@/stores/useSimulationStore";
 import { useTrainStore } from "@/stores/useTrainStore";
 import type { ScreenCoord } from "@/types/map";
 import type { Station } from "@/types/station";
@@ -23,6 +24,7 @@ export function useTrainPolling(
 	stationScreenMap: Map<string, ScreenCoord>,
 	adjacencyMap: Map<string, AdjacencyInfo>,
 ): void {
+	const mode = useSimulationStore((s) => s.mode);
 	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const updatePositions = useTrainStore((s) => s.updatePositions);
 	const setFetchError = useTrainStore((s) => s.setFetchError);
@@ -88,6 +90,12 @@ export function useTrainPolling(
 
 	// 마운트 시 폴링 시작, 언마운트 시 정리
 	useEffect(() => {
+		// 시뮬레이션 모드이면 API 폴링 중단
+		if (mode !== "live") {
+			stopPolling();
+			return;
+		}
+
 		// stationScreenMap이 비어있으면 아직 준비되지 않음
 		if (stationScreenMap.size === 0) return;
 
@@ -115,5 +123,5 @@ export function useTrainPolling(
 			}
 			document.removeEventListener("visibilitychange", handleVisibility);
 		};
-	}, [startIfOperating, stopPolling, stationScreenMap]);
+	}, [mode, startIfOperating, stopPolling, stationScreenMap]);
 }

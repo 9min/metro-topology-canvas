@@ -6,13 +6,15 @@ import { setupZoomPan } from "@/canvas/interactions/zoomPan";
 import { drawLinks, updateLinksAlpha } from "@/canvas/objects/LineLink";
 import { drawStationLabels, updateLabelVisibility } from "@/canvas/objects/StationLabel";
 import { drawAllStations, updateStationAlpha } from "@/canvas/objects/StationNode";
-import { LABEL_FULL_SCALE, LABEL_SHOW_SCALE } from "@/constants/mapConfig";
+import { LABEL_FULL_SCALE, LABEL_SHOW_SCALE, SIMULATION_TICK_MS } from "@/constants/mapConfig";
 import linksData from "@/data/links.json";
 import stationsData from "@/data/stations.json";
 import { useCoordTransform } from "@/hooks/useCoordTransform";
 import { usePixiApp } from "@/hooks/usePixiApp";
+import { useSimulationPolling } from "@/hooks/useSimulationPolling";
 import { useTrainPolling } from "@/hooks/useTrainPolling";
 import { useMapStore } from "@/stores/useMapStore";
+import { useSimulationStore } from "@/stores/useSimulationStore";
 import { useStationStore } from "@/stores/useStationStore";
 import { useTrainStore } from "@/stores/useTrainStore";
 import type { Station, StationLink } from "@/types/station";
@@ -41,6 +43,7 @@ export function MapCanvas() {
 	const selectedStation = useStationStore((state) => state.selectedStation);
 	const selectedTrainNo = useTrainStore((state) => state.selectedTrainNo);
 	const activeLines = useMapStore((state) => state.activeLines);
+	const mode = useSimulationStore((state) => state.mode);
 
 	const adjacencyMap = useMemo(() => buildAdjacencyMap(LINKS), []);
 	const animatorRef = useRef<TrainAnimator | null>(null);
@@ -51,8 +54,11 @@ export function MapCanvas() {
 		initStations(STATIONS, LINKS);
 	}, [initStations]);
 
-	// 실시간 열차 위치 폴링
+	// 실시간 열차 위치 폴링 (live 모드에서만 동작)
 	useTrainPolling(STATIONS, stationScreenMap, adjacencyMap);
+
+	// 시뮬레이션 폴링 (simulation 모드에서만 동작)
+	useSimulationPolling(LINKS, stationScreenMap, adjacencyMap);
 
 	// scene이 준비되면 노선/역/레이블 렌더링 + 줌팬 설정 + ticker 등록
 	useEffect(() => {
@@ -125,8 +131,9 @@ export function MapCanvas() {
 	// 폴링 데이터가 갱신되면 애니메이터에 새 목표를 전달
 	useEffect(() => {
 		if (animatorRef.current === null) return;
-		animatorRef.current.setTargets(interpolatedTrains);
-	}, [interpolatedTrains]);
+		const duration = mode === "simulation" ? SIMULATION_TICK_MS : undefined;
+		animatorRef.current.setTargets(interpolatedTrains, duration);
+	}, [interpolatedTrains, mode]);
 
 	// 역 선택 또는 노선 필터 변경 시 linksLayer 딤 + 노선 alpha + stationAlpha 업데이트
 	useEffect(() => {
