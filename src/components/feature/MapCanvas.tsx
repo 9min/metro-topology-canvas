@@ -58,7 +58,7 @@ export function MapCanvas() {
 	useTrainPolling(STATIONS, stationScreenMap, adjacencyMap);
 
 	// 시뮬레이션 폴링 (simulation 모드에서만 동작)
-	useSimulationPolling(LINKS, stationScreenMap, adjacencyMap);
+	useSimulationPolling(LINKS, stationScreenMap);
 
 	// scene이 준비되면 노선/역/레이블 렌더링 + 줌팬 설정 + ticker 등록
 	useEffect(() => {
@@ -132,7 +132,8 @@ export function MapCanvas() {
 	useEffect(() => {
 		if (animatorRef.current === null) return;
 		const duration = mode === "simulation" ? SIMULATION_TICK_MS : undefined;
-		animatorRef.current.setTargets(interpolatedTrains, duration);
+		const linear = mode === "simulation";
+		animatorRef.current.setTargets(interpolatedTrains, duration, linear);
 	}, [interpolatedTrains, mode]);
 
 	// 역 선택 또는 노선 필터 변경 시 linksLayer 딤 + 노선 alpha + stationAlpha 업데이트

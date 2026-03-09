@@ -104,4 +104,16 @@ describe("TrainAnimator", () => {
 		const cb = vi.fn();
 		expect(() => animator.setOnTrainTap(cb)).not.toThrow();
 	});
+
+	it("linear=true 시 열차 상태에 linear 플래그가 설정된다", () => {
+		animator.setTargets([MOCK_TRAIN], 3000, true);
+		const state = animator.getTrainState("1001");
+		expect(state?.linear).toBe(true);
+	});
+
+	it("linear 미지정 시 기본값 false로 설정된다", () => {
+		animator.setTargets([MOCK_TRAIN]);
+		const state = animator.getTrainState("1001");
+		expect(state?.linear).toBe(false);
+	});
 });

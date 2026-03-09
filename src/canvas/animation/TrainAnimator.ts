@@ -39,7 +39,11 @@ export class TrainAnimator {
 	 * 신규 열차는 목표 위치에 즉시 배치한다.
 	 * 사라진 열차는 제거한다.
 	 */
-	setTargets(interpolated: InterpolatedTrain[], duration?: number): void {
+	setTargets(
+		interpolated: InterpolatedTrain[],
+		duration?: number,
+		linear?: boolean,
+	): void {
 		const now = performance.now();
 		const animDuration = duration ?? TRAIN_ANIMATION_DURATION_MS;
 		const newKeys = new Set<string>();
@@ -59,6 +63,7 @@ export class TrainAnimator {
 				existing.fromStationId = train.fromStationId;
 				existing.toStationId = train.toStationId;
 				existing.direction = train.direction;
+				existing.linear = linear ?? false;
 				existing.path = [
 					{ x: existing.currentX, y: existing.currentY },
 					{ x: train.x, y: train.y },
@@ -80,6 +85,7 @@ export class TrainAnimator {
 					fromStationId: train.fromStationId,
 					toStationId: train.toStationId,
 					path: [{ x: train.x, y: train.y }],
+					linear: linear ?? false,
 				});
 			}
 		}
@@ -115,7 +121,7 @@ export class TrainAnimator {
 			} else {
 				const elapsed = now - state.startTime;
 				const rawT = Math.min(elapsed / state.duration, 1);
-				const t = easeInOutCubic(rawT);
+				const t = state.linear ? rawT : easeInOutCubic(rawT);
 
 				state.currentX = state.startX + (state.targetX - state.startX) * t;
 				state.currentY = state.startY + (state.targetY - state.startY) * t;

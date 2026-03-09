@@ -1,14 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TrainSimulator } from "@/services/trainSimulator";
-import type { Station, StationLink } from "@/types/station";
-
-const STATIONS: Station[] = [
-	{ id: "S1", name: "A역", line: 1, x: 127.0, y: 37.5 },
-	{ id: "S2", name: "B역", line: 1, x: 127.01, y: 37.51 },
-	{ id: "S3", name: "C역", line: 1, x: 127.02, y: 37.52 },
-	{ id: "S4", name: "D역", line: 1, x: 127.03, y: 37.53 },
-	{ id: "S5", name: "E역", line: 1, x: 127.04, y: 37.54 },
-];
+import type { ScreenCoord } from "@/types/map";
+import type { StationLink } from "@/types/station";
 
 const LINKS: StationLink[] = [
 	{ source: "S1", target: "S2", line: 1 },
@@ -17,30 +10,32 @@ const LINKS: StationLink[] = [
 	{ source: "S4", target: "S5", line: 1 },
 ];
 
-describe("TrainSimulator", () => {
-	it("init 후 tick하면 열차 위치를 반환한다", () => {
-		const sim = new TrainSimulator();
-		sim.init(LINKS);
-		const positions = sim.tick();
-		expect(positions.length).toBeGreaterThan(0);
-	});
+const SCREEN_MAP: Map<string, ScreenCoord> = new Map([
+	["S1", { x: 100, y: 100 }],
+	["S2", { x: 200, y: 100 }],
+	["S3", { x: 300, y: 100 }],
+	["S4", { x: 400, y: 100 }],
+	["S5", { x: 500, y: 100 }],
+]);
 
-	it("모든 열차의 stationId가 유효한 역이다", () => {
+describe("TrainSimulator", () => {
+	it("init 후 tick하면 보간된 열차 좌표를 반환한다", () => {
 		const sim = new TrainSimulator();
 		sim.init(LINKS);
-		const positions = sim.tick();
-		const validIds = new Set(STATIONS.map((s) => s.id));
-		for (const pos of positions) {
-			expect(validIds.has(pos.stationId)).toBe(true);
+		const trains = sim.tick(SCREEN_MAP);
+		expect(trains.length).toBeGreaterThan(0);
+		for (const t of trains) {
+			expect(t.x).toBeGreaterThanOrEqual(100);
+			expect(t.x).toBeLessThanOrEqual(500);
 		}
 	});
 
 	it("trainNo가 SIM- 접두사를 가진다", () => {
 		const sim = new TrainSimulator();
 		sim.init(LINKS);
-		const positions = sim.tick();
-		for (const pos of positions) {
-			expect(pos.trainNo.startsWith("SIM-")).toBe(true);
+		const trains = sim.tick(SCREEN_MAP);
+		for (const t of trains) {
+			expect(t.trainNo.startsWith("SIM-")).toBe(true);
 		}
 	});
 
@@ -48,28 +43,38 @@ describe("TrainSimulator", () => {
 		const sim = new TrainSimulator();
 		sim.init(LINKS);
 
-		const firstTick = sim.tick();
-		const firstStations = firstTick.map((p) => p.stationId);
+		const first = sim.tick(SCREEN_MAP);
+		const firstPositions = first.map((t) => `${t.x},${t.y}`);
 
-		// 여러 번 틱하면 열차가 이동해야 한다
 		for (let i = 0; i < 10; i++) {
-			sim.tick();
+			sim.tick(SCREEN_MAP);
 		}
-		const laterTick = sim.tick();
-		const laterStations = laterTick.map((p) => p.stationId);
+		const later = sim.tick(SCREEN_MAP);
+		const laterPositions = later.map((t) => `${t.x},${t.y}`);
 
-		// 최소 하나의 열차는 다른 역에 있어야 한다
-		const changed = laterStations.some((s, i) => s !== firstStations[i]);
+		const changed = laterPositions.some((pos, i) => pos !== firstPositions[i]);
 		expect(changed).toBe(true);
 	});
 
-	it("status가 진입/도착/출발 중 하나이다", () => {
+	it("fromStationId와 toStationId가 유효하다", () => {
 		const sim = new TrainSimulator();
 		sim.init(LINKS);
-		const positions = sim.tick();
-		const validStatuses = new Set(["진입", "도착", "출발"]);
-		for (const pos of positions) {
-			expect(validStatuses.has(pos.status)).toBe(true);
+		const trains = sim.tick(SCREEN_MAP);
+		for (const t of trains) {
+			expect(SCREEN_MAP.has(t.fromStationId)).toBe(true);
+			expect(SCREEN_MAP.has(t.toStationId)).toBe(true);
+		}
+	});
+
+	it("progress가 0~1 범위이다", () => {
+		const sim = new TrainSimulator();
+		sim.init(LINKS);
+		for (let i = 0; i < 20; i++) {
+			const trains = sim.tick(SCREEN_MAP);
+			for (const t of trains) {
+				expect(t.progress).toBeGreaterThanOrEqual(0);
+				expect(t.progress).toBeLessThan(1);
+			}
 		}
 	});
 });

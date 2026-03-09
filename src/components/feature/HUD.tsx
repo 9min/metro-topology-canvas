@@ -7,6 +7,7 @@ import { useTrainStore } from "@/stores/useTrainStore";
 function formatElapsed(lastFetchedAt: string | null, now: number): string {
 	if (lastFetchedAt === null) return "대기 중";
 	const sec = Math.round((now - new Date(lastFetchedAt).getTime()) / 1000);
+	if (sec <= 0) return "방금";
 	if (sec < 60) return `${sec}초 전`;
 	return `${Math.floor(sec / 60)}분 전`;
 }

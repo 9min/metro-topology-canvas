@@ -69,4 +69,6 @@ export interface AnimatedTrainState {
 	 * 직선 구간은 2개, 역을 경유하면 3개 이상의 점으로 구성된다.
 	 */
 	path: PathPoint[];
+	/** true이면 이징 없이 선형 보간한다 (시뮬레이션 모드용) */
+	linear?: boolean;
 }

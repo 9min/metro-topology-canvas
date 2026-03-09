@@ -1,20 +1,25 @@
 import { SIMULATION_TRAINS_PER_LINE } from "@/constants/mapConfig";
+import type { ScreenCoord } from "@/types/map";
 import type { StationLink } from "@/types/station";
-import type { TrainPosition } from "@/types/train";
+import type { InterpolatedTrain } from "@/types/train";
+import { lerp } from "@/utils/trainInterpolation";
 
 /** 시뮬레이션 열차 내부 상태 */
 interface SimTrain {
 	trainNo: string;
 	line: number;
 	direction: "상행" | "하행";
-	/** 현재 경로 인덱스 (route 배열 내 위치) */
-	routeIdx: number;
-	/** 상태 전이 순서: 0=출발, 1=진입, 2=도착 */
-	phase: number;
+	/** 현재 출발역 인덱스 (route 배열 내 위치) */
+	segmentIdx: number;
+	/** 현재 구간 내 진행률 (0.0 ~ 1.0) */
+	progress: number;
 }
 
 /** 노선별 경로 (역 ID 배열) */
 type RouteMap = Map<number, string[]>;
+
+/** 틱당 진행률 증가량 — 약 3틱에 한 역 구간 이동 */
+const PROGRESS_PER_TICK = 0.35;
 
 /** 링크 데이터로부터 인접 리스트를 구성한다 */
 function buildAdjacency(lineLinks: StationLink[]): Map<string, string[]> {
@@ -91,7 +96,7 @@ function buildRoutes(links: StationLink[]): RouteMap {
 /**
  * 시뮬레이션 열차 엔진.
  * 초기화 시 각 노선에 열차를 균등 배치하고,
- * tick()마다 상태를 전이시켜 TrainPosition[]을 생성한다.
+ * tick()마다 연속 좌표로 보간된 InterpolatedTrain[]을 반환한다.
  */
 export class TrainSimulator {
 	private trains: SimTrain[] = [];
@@ -103,95 +108,130 @@ export class TrainSimulator {
 		this.trains = [];
 
 		for (const [line, route] of this.routes) {
+			if (route.length < 2) continue;
+			const segmentCount = route.length - 1;
 			const count = SIMULATION_TRAINS_PER_LINE[line] ?? 6;
 			const halfCount = Math.ceil(count / 2);
-			const spacing = Math.max(1, Math.floor(route.length / halfCount));
 
 			// 상행 열차 배치
 			for (let i = 0; i < halfCount; i++) {
-				const idx = (i * spacing) % route.length;
+				const totalProgress = (i / halfCount) * segmentCount;
 				this.trains.push({
 					trainNo: `SIM-L${line}-U${i}`,
 					line,
 					direction: "상행",
-					routeIdx: idx,
-					phase: (i * 7) % 3, // 위상 분산
+					segmentIdx: Math.floor(totalProgress) % segmentCount,
+					progress: totalProgress % 1,
 				});
 			}
 
 			// 하행 열차 배치 (오프셋으로 겹침 방지)
 			const downCount = count - halfCount;
 			for (let i = 0; i < downCount; i++) {
-				const idx = (i * spacing + Math.floor(spacing / 2)) % route.length;
+				const totalProgress = ((i + 0.5) / downCount) * segmentCount;
 				this.trains.push({
 					trainNo: `SIM-L${line}-D${i}`,
 					line,
 					direction: "하행",
-					routeIdx: idx,
-					phase: (i * 5 + 1) % 3,
+					segmentIdx: Math.floor(totalProgress) % segmentCount,
+					progress: totalProgress % 1,
 				});
 			}
 		}
 	}
 
-	/** 한 틱 진행: 상태 전이 후 TrainPosition[] 반환 */
-	tick(): TrainPosition[] {
-		const positions: TrainPosition[] = [];
+	/** 한 틱 진행: 위치를 전진시키고 화면 좌표로 보간된 결과를 반환한다 */
+	tick(stationScreenMap: Map<string, ScreenCoord>): InterpolatedTrain[] {
+		const results: InterpolatedTrain[] = [];
 
 		for (const train of this.trains) {
 			const route = this.routes.get(train.line);
-			if (route === undefined || route.length === 0) continue;
+			if (route === undefined || route.length < 2) continue;
 
-			// 상태 전이: 출발(0) → 진입(1) → 도착(2) → 출발(0) + 이동
-			train.phase = (train.phase + 1) % 3;
+			// 진행률 전진
+			this.advanceTrain(train, route);
 
-			if (train.phase === 0) {
-				// 출발 → 다음 역으로 이동
-				this.advanceTrain(train, route);
-			}
-
-			const stationId = route[train.routeIdx];
-			if (stationId === undefined) continue;
-
-			const statusMap = ["출발", "진입", "도착"] as const;
-
-			positions.push({
-				trainNo: train.trainNo,
-				stationId,
-				stationName: "",
-				line: train.line,
-				direction: train.direction,
-				status: statusMap[train.phase] ?? "도착",
-			});
+			// 현재 구간의 양 끝 역 화면 좌표로 보간
+			const result = this.interpolate(train, route, stationScreenMap);
+			if (result !== null) results.push(result);
 		}
 
-		return positions;
+		return results;
 	}
 
-	/** 열차를 경로상 다음 역으로 이동시킨다 */
+	/** 열차 진행률을 전진시키고, 구간 끝에 도달하면 다음 구간으로 넘긴다 */
 	private advanceTrain(train: SimTrain, route: string[]): void {
+		const segmentCount = route.length - 1;
+		train.progress += PROGRESS_PER_TICK;
+
+		while (train.progress >= 1) {
+			train.progress -= 1;
+			this.moveToNextSegment(train, segmentCount);
+		}
+	}
+
+	/** 다음 구간으로 이동 (종점 반전 또는 순환) */
+	private moveToNextSegment(train: SimTrain, segmentCount: number): void {
 		const isCircular = train.line === 2;
 
 		if (train.direction === "상행") {
-			train.routeIdx++;
-			if (train.routeIdx >= route.length) {
+			train.segmentIdx++;
+			if (train.segmentIdx >= segmentCount) {
 				if (isCircular) {
-					train.routeIdx = 0;
+					train.segmentIdx = 0;
 				} else {
-					train.routeIdx = route.length - 2;
+					train.segmentIdx = segmentCount - 1;
 					train.direction = "하행";
+					train.progress = 1 - train.progress;
 				}
 			}
 		} else {
-			train.routeIdx--;
-			if (train.routeIdx < 0) {
+			train.segmentIdx--;
+			if (train.segmentIdx < 0) {
 				if (isCircular) {
-					train.routeIdx = route.length - 1;
+					train.segmentIdx = segmentCount - 1;
 				} else {
-					train.routeIdx = 1;
+					train.segmentIdx = 0;
 					train.direction = "상행";
+					train.progress = 1 - train.progress;
 				}
 			}
 		}
+	}
+
+	/** 현재 구간 내 progress로 화면 좌표를 보간한다 */
+	private interpolate(
+		train: SimTrain,
+		route: string[],
+		screenMap: Map<string, ScreenCoord>,
+	): InterpolatedTrain | null {
+		// 상행: route[segmentIdx] → route[segmentIdx+1]
+		// 하행: route[segmentIdx+1] → route[segmentIdx]
+		const fromIdx = train.direction === "상행" ? train.segmentIdx : train.segmentIdx + 1;
+		const toIdx = train.direction === "상행" ? train.segmentIdx + 1 : train.segmentIdx;
+
+		const fromId = route[fromIdx];
+		const toId = route[toIdx];
+		if (fromId === undefined || toId === undefined) return null;
+
+		const fromCoord = screenMap.get(fromId);
+		const toCoord = screenMap.get(toId);
+		if (fromCoord === undefined || toCoord === undefined) return null;
+
+		return {
+			trainNo: train.trainNo,
+			line: train.line,
+			x: lerp(fromCoord.x, toCoord.x, train.progress),
+			y: lerp(fromCoord.y, toCoord.y, train.progress),
+			direction: train.direction,
+			progress: train.progress,
+			fromStationId: fromId,
+			toStationId: toId,
+		};
+	}
+
+	/** 현재 시뮬레이션 열차 수 */
+	get count(): number {
+		return this.trains.length;
 	}
 }
