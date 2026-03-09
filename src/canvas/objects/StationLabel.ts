@@ -91,6 +91,35 @@ function parseNameLength(tag: string): number {
 /** 이전 프레임의 레이블 visible 상태를 기억하여 히스테리시스를 적용한다 */
 const prevVisible = new Map<string, boolean>();
 
+/** 레이블 목록을 그리드 충돌 검사하여 visible 상태를 결정한다 */
+function placeLabelsOnGrid(
+	children: Container["children"],
+	occupied: Set<string>,
+	scale: number,
+	viewportX: number,
+	viewportY: number,
+): void {
+	for (const child of children) {
+		const tag = child.label ?? "";
+		const sx = child.x * scale + viewportX;
+		const sy = child.y * scale + viewportY;
+
+		const labelW = parseNameLength(tag) * CHAR_WIDTH;
+		const colStart = Math.floor((sx - labelW / 2) / GRID_CELL_W);
+		const colEnd = Math.floor((sx + labelW / 2) / GRID_CELL_W);
+		const row = Math.floor(sy / GRID_CELL_H);
+
+		if (hasGridCollision(occupied, colStart, colEnd, row)) {
+			child.visible = false;
+			prevVisible.set(tag, false);
+		} else {
+			child.visible = true;
+			prevVisible.set(tag, true);
+			markOccupied(occupied, colStart, colEnd, row);
+		}
+	}
+}
+
 /**
  * 화면 공간 그리드 기반 충돌 감지로 겹치는 레이블을 숨긴다.
  * 히스테리시스: 이전 프레임에서 visible이었던 레이블이 그리드를 선점하여
@@ -144,45 +173,8 @@ export function updateLabelVisibility(
 		}
 	}
 
-	// 1차 패스: 이전에 visible이었던 레이블 → 그리드 선점
-	for (const child of prevVisibleChildren) {
-		const tag = child.label ?? "";
-		const sx = child.x * scale + viewportX;
-		const sy = child.y * scale + viewportY;
-
-		const labelW = parseNameLength(tag) * CHAR_WIDTH;
-		const colStart = Math.floor((sx - labelW / 2) / GRID_CELL_W);
-		const colEnd = Math.floor((sx + labelW / 2) / GRID_CELL_W);
-		const row = Math.floor(sy / GRID_CELL_H);
-
-		if (hasGridCollision(occupied, colStart, colEnd, row)) {
-			child.visible = false;
-			prevVisible.set(tag, false);
-		} else {
-			child.visible = true;
-			prevVisible.set(tag, true);
-			markOccupied(occupied, colStart, colEnd, row);
-		}
-	}
-
-	// 2차 패스: 이전에 hidden이었던 레이블 → 남은 그리드에 배치 시도
-	for (const child of prevHiddenChildren) {
-		const tag = child.label ?? "";
-		const sx = child.x * scale + viewportX;
-		const sy = child.y * scale + viewportY;
-
-		const labelW = parseNameLength(tag) * CHAR_WIDTH;
-		const colStart = Math.floor((sx - labelW / 2) / GRID_CELL_W);
-		const colEnd = Math.floor((sx + labelW / 2) / GRID_CELL_W);
-		const row = Math.floor(sy / GRID_CELL_H);
-
-		if (hasGridCollision(occupied, colStart, colEnd, row)) {
-			child.visible = false;
-			prevVisible.set(tag, false);
-		} else {
-			child.visible = true;
-			prevVisible.set(tag, true);
-			markOccupied(occupied, colStart, colEnd, row);
-		}
-	}
+	// 1차: 이전에 visible이었던 레이블 → 그리드 선점
+	placeLabelsOnGrid(prevVisibleChildren, occupied, scale, viewportX, viewportY);
+	// 2차: 이전에 hidden이었던 레이블 → 남은 그리드에 배치 시도
+	placeLabelsOnGrid(prevHiddenChildren, occupied, scale, viewportX, viewportY);
 }

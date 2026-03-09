@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-	maybeUpdatePerfStore,
-	resetPerfThrottle,
-	usePerfStore,
-} from "@/stores/usePerfStore";
+import { maybeUpdatePerfStore, resetPerfThrottle, usePerfStore } from "@/stores/usePerfStore";
 
 describe("usePerfStore", () => {
 	afterEach(() => {

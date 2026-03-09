@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-	type TrailQueue,
 	drawTrails,
 	pruneTrails,
+	type TrailQueue,
 	updateTrailQueues,
 } from "@/canvas/objects/TrainTrail";
 import type { AnimatedTrainState } from "@/types/train";
@@ -90,8 +90,20 @@ describe("TrainTrail", () => {
 		it("비활성 노선의 트레일은 그리지 않는다", () => {
 			const trailMap = new Map<string, TrailQueue>();
 			// 선분 렌더링이므로 최소 2포인트 필요
-			trailMap.set("T1", { points: [{ x: 0, y: 0 }, { x: 5, y: 5 }], line: 1 });
-			trailMap.set("T2", { points: [{ x: 10, y: 10 }, { x: 15, y: 15 }], line: 2 });
+			trailMap.set("T1", {
+				points: [
+					{ x: 0, y: 0 },
+					{ x: 5, y: 5 },
+				],
+				line: 1,
+			});
+			trailMap.set("T2", {
+				points: [
+					{ x: 10, y: 10 },
+					{ x: 15, y: 15 },
+				],
+				line: 2,
+			});
 
 			// mock Graphics — moveTo/lineTo/stroke 호출 수 확인
 			let strokeCallCount = 0;

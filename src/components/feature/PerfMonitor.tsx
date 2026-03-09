@@ -18,18 +18,10 @@ export function PerfMonitor() {
 
 	return (
 		<div className="pointer-events-auto fixed right-4 bottom-4 rounded-lg bg-black/70 px-3 py-2 font-mono text-xs backdrop-blur-sm">
-			<div className={fpsColor(fps)}>
-				FPS: {Math.round(fps)}
-			</div>
-			<div className="text-gray-300">
-				Render: {renderTimeMs.toFixed(1)}ms
-			</div>
-			<div className="text-gray-300">
-				Trains: {activeTrainCount}
-			</div>
-			<div className="text-gray-300">
-				Pool: {graphicsPoolSize}
-			</div>
+			<div className={fpsColor(fps)}>FPS: {Math.round(fps)}</div>
+			<div className="text-gray-300">Render: {renderTimeMs.toFixed(1)}ms</div>
+			<div className="text-gray-300">Trains: {activeTrainCount}</div>
+			<div className="text-gray-300">Pool: {graphicsPoolSize}</div>
 		</div>
 	);
 }

@@ -79,5 +79,16 @@ export async function createPixiApp(canvas: HTMLCanvasElement): Promise<PixiScen
 		app.destroy(false, { children: true });
 	};
 
-	return { app, canvas, viewport, linksLayer, heatmapLayer, trailLayer, stationsLayer, trainsLayer, labelsLayer, destroy };
+	return {
+		app,
+		canvas,
+		viewport,
+		linksLayer,
+		heatmapLayer,
+		trailLayer,
+		stationsLayer,
+		trainsLayer,
+		labelsLayer,
+		destroy,
+	};
 }

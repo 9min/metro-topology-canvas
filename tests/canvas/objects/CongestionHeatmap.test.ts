@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-	computeLinkCongestion,
-	congestionColor,
-} from "@/canvas/objects/CongestionHeatmap";
+import { computeLinkCongestion, congestionColor } from "@/canvas/objects/CongestionHeatmap";
 import type { StationLink } from "@/types/station";
 import type { AnimatedTrainState } from "@/types/train";
 

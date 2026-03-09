@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LINE_COLORS } from "@/constants/lineColors";
 import { getEnabledLines, useMapStore } from "@/stores/useMapStore";
-import { useSimulationStore } from "@/stores/useSimulationStore";
 import { usePerfStore } from "@/stores/usePerfStore";
+import { useSimulationStore } from "@/stores/useSimulationStore";
 
 const LINES = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 
@@ -80,9 +80,7 @@ export function LineFilter() {
 					onClick={toggleHeatmap}
 					title="혼잡도 히트맵 (H)"
 					className={`rounded px-2 py-0.5 text-sm transition-colors ${
-						heatmapEnabled
-							? "bg-orange-500/80 text-white"
-							: "text-white/50 hover:text-white"
+						heatmapEnabled ? "bg-orange-500/80 text-white" : "text-white/50 hover:text-white"
 					}`}
 				>
 					히트맵
@@ -92,9 +90,7 @@ export function LineFilter() {
 					onClick={togglePerf}
 					title="성능 모니터 (P)"
 					className={`rounded px-2 py-0.5 text-sm transition-colors ${
-						perfVisible
-							? "bg-blue-500/80 text-white"
-							: "text-white/50 hover:text-white"
+						perfVisible ? "bg-blue-500/80 text-white" : "text-white/50 hover:text-white"
 					}`}
 				>
 					FPS
