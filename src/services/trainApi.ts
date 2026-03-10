@@ -107,7 +107,7 @@ export async function fetchLineTrains(lineNumber: number): Promise<TrainPosition
 	}
 }
 
-/** 실시간 열차 위치를 병렬로 가져온다 */
+/** 실시간 열차 위치를 병렬로 가져온다 (9호선 전용) */
 export async function fetchAllTrains(lines: number[]): Promise<TrainPosition[]> {
 	const results = await Promise.allSettled(lines.map((n) => fetchLineTrains(n)));
 
@@ -118,4 +118,54 @@ export async function fetchAllTrains(lines: number[]): Promise<TrainPosition[]> 
 		}
 	}
 	return allTrains;
+}
+
+/** SMSS 프록시 응답 항목 */
+interface SmssTrainRaw {
+	trainNo: string;
+	stationName: string;
+	line: number;
+	direction: "상행" | "하행";
+	status: "진입" | "도착" | "출발";
+}
+
+/** SMSS 프록시를 통해 열차 위치를 가져온다 (1~8호선) */
+export async function fetchTrainsFromSmss(lines: number[]): Promise<TrainPosition[]> {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+	try {
+		const response = await fetch("/api/trains", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ lines }),
+			signal: controller.signal,
+		});
+
+		if (!response.ok) {
+			console.warn(`[trainApi] SMSS 프록시 HTTP ${response.status}`);
+			return [];
+		}
+
+		const data = (await response.json()) as { trains: SmssTrainRaw[] };
+		if (!Array.isArray(data.trains)) return [];
+
+		return data.trains.map((raw) => ({
+			trainNo: raw.trainNo,
+			stationId: "",
+			stationName: raw.stationName,
+			line: raw.line,
+			direction: raw.direction,
+			status: raw.status,
+		}));
+	} catch (error) {
+		if (error instanceof DOMException && error.name === "AbortError") {
+			console.warn("[trainApi] SMSS 프록시 요청 타임아웃");
+		} else {
+			console.warn("[trainApi] SMSS 프록시 요청 실패:", error);
+		}
+		return [];
+	} finally {
+		clearTimeout(timeout);
+	}
 }

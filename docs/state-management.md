@@ -18,10 +18,11 @@
 
 ```
 src/stores/
-├── useTrainStore.ts        # 실시간 열차 위치 데이터
+├── useTrainStore.ts        # 실시간 열차 위치 데이터, 선택된 열차
 ├── useStationStore.ts      # 역 선택 상태, 스테이션 인스펙터
-├── useMapStore.ts          # 줌/팬 상태, 카메라 위치
-└── useUiStore.ts           # UI 상태 (패널 열림, 테마 등)
+├── useMapStore.ts          # 줌/팬 상태, 활성 노선 필터, 히트맵 토글
+├── useSimulationStore.ts   # 시뮬레이션/실제운행 모드 상태 (AppMode)
+└── usePerfStore.ts         # 성능 모니터링 메트릭 (FPS, 렌더 시간 등)
 ```
 
 ### 열차 상태 스토어
@@ -36,22 +37,23 @@ interface TrainState {
   rawPositions: TrainPosition[];
   // 보간된 열차 위치 (렌더링용)
   interpolatedTrains: InterpolatedTrain[];
-  // 선택된 열차 (트레인 트래커)
-  followingTrain: string | null;
+  // 선택된 열차 번호
+  selectedTrainNo: string | null;
 
-  setRawPositions: (positions: TrainPosition[]) => void;
-  setInterpolatedTrains: (trains: InterpolatedTrain[]) => void;
-  followTrain: (trainNo: string | null) => void;
+  updatePositions: (
+    positions: TrainPosition[],
+    stationScreenMap: Map<string, ScreenCoord>,
+    adjacencyMap: Map<string, AdjacencyInfo>,
+  ) => void;
+  selectTrain: (trainNo: string | null) => void;
+  clearPositions: () => void;
 }
 
-export const useTrainStore = create<TrainState>()((set) => ({
+export const useTrainStore = create<TrainState>((set, get) => ({
   rawPositions: [],
   interpolatedTrains: [],
-  followingTrain: null,
-
-  setRawPositions: (positions) => set({ rawPositions: positions }),
-  setInterpolatedTrains: (trains) => set({ interpolatedTrains: trains }),
-  followTrain: (trainNo) => set({ followingTrain: trainNo }),
+  selectedTrainNo: null,
+  // ...
 }));
 ```
 
@@ -80,54 +82,46 @@ export const useStationStore = create<StationState>()((set) => ({
 import { create } from "zustand";
 
 interface MapState {
-  zoom: number;
+  scale: number;
   offsetX: number;
   offsetY: number;
-  setZoom: (zoom: number) => void;
+  isDragging: boolean;
+  activeLines: Set<number>;
+  heatmapEnabled: boolean;
+  setScale: (scale: number) => void;
   setOffset: (x: number, y: number) => void;
+  toggleLine: (line: number, enabledLines: Set<number>) => void;
+  toggleHeatmap: () => void;
 }
 
-export const useMapStore = create<MapState>()((set) => ({
-  zoom: 1,
+export const useMapStore = create<MapState>((set) => ({
+  scale: 1,
   offsetX: 0,
   offsetY: 0,
-  setZoom: (zoom) => set({ zoom }),
-  setOffset: (x, y) => set({ offsetX: x, offsetY: y }),
+  isDragging: false,
+  activeLines: new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]),
+  heatmapEnabled: false,
+  // ...
 }));
 ```
 
-### UI 상태 스토어
+### 시뮬레이션 모드 스토어
 
 ```ts
-// src/stores/useUiStore.ts
+// src/stores/useSimulationStore.ts
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
-interface UiState {
-  theme: "light" | "dark";
-  isInspectorOpen: boolean;
-  isTrackerOpen: boolean;
-  toggleTheme: () => void;
-  setInspectorOpen: (open: boolean) => void;
-  setTrackerOpen: (open: boolean) => void;
+export type AppMode = "simulation" | "live";
+
+interface SimulationState {
+  mode: AppMode;
+  setMode: (mode: AppMode) => void;
 }
 
-export const useUiStore = create<UiState>()(
-  persist(
-    (set) => ({
-      theme: "dark",
-      isInspectorOpen: false,
-      isTrackerOpen: false,
-      toggleTheme: () =>
-        set((state) => ({
-          theme: state.theme === "light" ? "dark" : "light",
-        })),
-      setInspectorOpen: (open) => set({ isInspectorOpen: open }),
-      setTrackerOpen: (open) => set({ isTrackerOpen: open }),
-    }),
-    { name: "ui-storage" },
-  ),
-);
+export const useSimulationStore = create<SimulationState>((set) => ({
+  mode: "simulation",
+  setMode: (mode) => set({ mode }),
+}));
 ```
 
 ## Zustand 사용 패턴
@@ -138,10 +132,10 @@ export const useUiStore = create<UiState>()(
 
 ```tsx
 // 좋은 예: 필요한 상태만 구독
-const followingTrain = useTrainStore((state) => state.followingTrain);
+const selectedTrainNo = useTrainStore((state) => state.selectedTrainNo);
 
 // 나쁜 예: 전체 스토어 구독 (불필요한 리렌더링 발생)
-const store = useTrainStore();
+const trainStore = useTrainStore();
 ```
 
 ### PixiJS와 Zustand 연동
@@ -149,18 +143,13 @@ const store = useTrainStore();
 PixiJS 렌더 루프에서는 React 리렌더링 없이 `getState()`로 직접 접근한다.
 
 ```ts
-// src/canvas/renderer/renderLoop.ts
+// src/canvas/animation/TrainAnimator.ts (update 메서드 내부)
 import { useTrainStore } from "@/stores/useTrainStore";
 
-function tick() {
-  // React 리렌더링 없이 상태 직접 접근
-  const { interpolatedTrains } = useTrainStore.getState();
-
-  for (const train of interpolatedTrains) {
-    // 열차 위치 업데이트 로직
-  }
-
-  requestAnimationFrame(tick);
+// PixiJS ticker 콜백 — React 리렌더링 없이 상태 직접 접근
+update(): void {
+  const selectedTrainNo = useTrainStore.getState().selectedTrainNo;
+  // 열차 위치 보간 및 렌더링
 }
 ```
 
@@ -169,21 +158,21 @@ function tick() {
 스토어 간 직접 의존은 피하고, 컴포넌트나 훅에서 여러 스토어를 조합한다.
 
 ```tsx
-// src/hooks/useStationInspector.ts
+// 여러 스토어를 컴포넌트에서 조합하는 예시
 import { useStationStore } from "@/stores/useStationStore";
 import { useTrainStore } from "@/stores/useTrainStore";
-import { useUiStore } from "@/stores/useUiStore";
+import { useMapStore } from "@/stores/useMapStore";
 
-export function useStationInspector() {
+function StationPanel() {
   const selectedStation = useStationStore((s) => s.selectedStation);
   const trains = useTrainStore((s) => s.interpolatedTrains);
-  const setInspectorOpen = useUiStore((s) => s.setInspectorOpen);
+  const activeLines = useMapStore((s) => s.activeLines);
 
   const stationTrains = trains.filter(
-    (t) => t.stationId === selectedStation?.id,
+    (t) => t.fromStationId === selectedStation?.id || t.toStationId === selectedStation?.id,
   );
 
-  return { selectedStation, stationTrains, setInspectorOpen };
+  return { selectedStation, stationTrains, activeLines };
 }
 ```
 

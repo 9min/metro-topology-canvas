@@ -21,7 +21,7 @@ export const usePerfStore = create<PerfState>((set) => ({
 	renderTimeMs: 0,
 	activeTrainCount: 0,
 	graphicsPoolSize: 0,
-	visible: true,
+	visible: false,
 	updateMetrics: (fps, renderTimeMs, activeTrainCount, graphicsPoolSize) =>
 		set({ fps, renderTimeMs, activeTrainCount, graphicsPoolSize }),
 	toggleVisible: () => set((state) => ({ visible: !state.visible })),

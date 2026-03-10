@@ -133,7 +133,7 @@ export class TrainSimulator {
 					line,
 					direction: "상행",
 					segmentIdx: Math.floor(totalProgress) % segmentCount,
-					progress: (totalProgress % 1) + Math.random() * 0.1,
+					progress: Math.min((totalProgress % 1) + Math.random() * 0.1, 0.99),
 					dwellRemaining: Math.floor(Math.random() * (SIM_DWELL_TICKS + 1)),
 					speedFactor: 0.85 + Math.random() * 0.3,
 				});
@@ -148,7 +148,7 @@ export class TrainSimulator {
 					line,
 					direction: "하행",
 					segmentIdx: Math.floor(totalProgress) % segmentCount,
-					progress: (totalProgress % 1) + Math.random() * 0.1,
+					progress: Math.min((totalProgress % 1) + Math.random() * 0.1, 0.99),
 					dwellRemaining: Math.floor(Math.random() * (SIM_DWELL_TICKS + 1)),
 					speedFactor: 0.85 + Math.random() * 0.3,
 				});

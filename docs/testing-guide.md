@@ -15,13 +15,19 @@
 ```
 프로젝트-루트/
 ├── src/
-│   ├── components/LoginForm.tsx
-│   ├── hooks/useAuth.ts
-│   └── services/authService.ts
+│   ├── canvas/animation/TrainAnimator.ts
+│   ├── canvas/objects/TrainParticle.ts
+│   ├── hooks/useKeyboardShortcuts.ts
+│   ├── services/trainApi.ts
+│   ├── stores/useTrainStore.ts
+│   └── utils/trainInterpolation.ts
 └── tests/
-    ├── components/LoginForm.test.tsx
-    ├── hooks/useAuth.test.ts
-    └── services/authService.test.ts
+    ├── canvas/animation/TrainAnimator.test.ts
+    ├── canvas/objects/TrainParticle.test.ts
+    ├── hooks/useKeyboardShortcuts.test.ts
+    ├── services/trainApi.test.ts
+    ├── stores/useTrainStore.test.ts
+    └── utils/trainInterpolation.test.ts
 ```
 
 ### 파일 네이밍
@@ -189,7 +195,38 @@ it("5초 후에 자동으로 알림을 닫는다", () => {
 });
 ```
 
-## Supabase 모킹 전략
+## 공공 API 모킹 전략
+
+이 프로젝트는 서울열린데이터광장 공공 API를 사용한다. Supabase는 사용하지 않는다.
+
+### fetch 모킹
+
+서울 API 호출은 `vi.stubEnv` + `fetch` 모킹으로 격리한다.
+
+```ts
+import { vi, beforeEach } from "vitest";
+
+beforeEach(() => {
+  vi.stubEnv("VITE_SEOUL_API_KEY", "test-key");
+  vi.stubGlobal("fetch", vi.fn());
+});
+
+it("API 응답을 파싱한다", async () => {
+  vi.mocked(fetch).mockResolvedValue({
+    ok: true,
+    json: async () => ({ realtimePositionList: [...] }),
+  } as Response);
+
+  const result = await fetchLineTrains("1호선");
+  expect(result).toHaveLength(/* ... */);
+});
+```
+
+---
+
+> 아래는 Supabase 기반 프로젝트를 위한 참고 가이드이다. 이 프로젝트에서는 사용하지 않는다.
+
+## Supabase 모킹 전략 (참고용)
 
 ### supabase-js 클라이언트 모킹
 

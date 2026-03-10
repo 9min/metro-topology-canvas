@@ -3,9 +3,10 @@ import { useEffect, useMemo, useRef } from "react";
 import { TrainAnimator } from "@/canvas/animation/TrainAnimator";
 import { handleStationTap } from "@/canvas/interactions/stationClick";
 import { handleTrainTap } from "@/canvas/interactions/trainClick";
-import { setupZoomPan } from "@/canvas/interactions/zoomPan";
+import { flyToRoute, flyToStation, setupZoomPan } from "@/canvas/interactions/zoomPan";
 import { computeLinkCongestion, drawCongestionHeatmap } from "@/canvas/objects/CongestionHeatmap";
 import { drawLinks, updateLinksAlpha } from "@/canvas/objects/LineLink";
+import { drawRoute, updateRoutePulse } from "@/canvas/objects/RoutePath";
 import { drawStationLabels, updateLabelVisibility } from "@/canvas/objects/StationLabel";
 import { drawAllStations, updateStationAlpha } from "@/canvas/objects/StationNode";
 import {
@@ -33,6 +34,7 @@ import { useSimulationPolling } from "@/hooks/useSimulationPolling";
 import { useTrainPolling } from "@/hooks/useTrainPolling";
 import { useMapStore } from "@/stores/useMapStore";
 import { maybeUpdatePerfStore } from "@/stores/usePerfStore";
+import { useRouteStore } from "@/stores/useRouteStore";
 import { useSimulationStore } from "@/stores/useSimulationStore";
 import { useStationStore } from "@/stores/useStationStore";
 import { useTrainStore } from "@/stores/useTrainStore";
@@ -40,6 +42,7 @@ import type { Station, StationLink } from "@/types/station";
 import { easeInOutCubic } from "@/utils/easing";
 import { buildStationGraph } from "@/utils/pathFinder";
 import { buildAdjacencyMap } from "@/utils/stationNameResolver";
+import { buildTransferMap } from "@/utils/transferStation";
 
 const STATIONS = stationsData as Station[];
 const LINKS = linksData as StationLink[];
@@ -97,9 +100,11 @@ export function MapCanvas() {
 	const selectedTrainNo = useTrainStore((state) => state.selectedTrainNo);
 	const activeLines = useMapStore((state) => state.activeLines);
 	const mode = useSimulationStore((state) => state.mode);
+	const route = useRouteStore((state) => state.route);
 
 	const adjacencyMap = useMemo(() => buildAdjacencyMap(LINKS), []);
 	const stationGraph = useMemo(() => buildStationGraph(LINKS), []);
+	const transferMap = useMemo(() => buildTransferMap(STATIONS), []);
 	const animatorRef = useRef<TrainAnimator | null>(null);
 	const selectedTrainNoRef = useRef<string | null>(null);
 	const trailMapRef = useRef<Map<string, TrailQueue>>(new Map());
@@ -138,8 +143,25 @@ export function MapCanvas() {
 		const endX = window.innerWidth / 2 - centerWorldX * INTRO_ZOOM_END;
 		const endY = window.innerHeight / 2 - centerWorldY * INTRO_ZOOM_END;
 
+		/** 역 클릭 핸들러: 경로 모드일 때는 출발/도착 설정 */
+		const onStationTap = (station: Station): void => {
+			const routeState = useRouteStore.getState();
+			if (routeState.isRouteMode) {
+				const { stations, links, stationMap } = useStationStore.getState();
+				if (routeState.fromStation === null) {
+					routeState.setFromStation(station);
+				} else {
+					routeState.setToStation(station, stations, links, stationMap);
+				}
+				// 경로 모드에서도 역 선택은 표시
+				handleStationTap(station);
+			} else {
+				handleStationTap(station);
+			}
+		};
+
 		drawLinks(scene.linksLayer, LINKS, stationScreenMap);
-		drawAllStations(scene.stationsLayer, STATIONS, stationScreenMap, handleStationTap);
+		drawAllStations(scene.stationsLayer, STATIONS, stationScreenMap, onStationTap, transferMap);
 		drawStationLabels(scene.labelsLayer, STATIONS, stationScreenMap);
 		// 초기 레이블 숨김 (시맨틱 줌)
 		scene.labelsLayer.alpha = 0;
@@ -210,6 +232,13 @@ export function MapCanvas() {
 
 			tickCameraTracking(selectedTrainNoRef.current, animator, scene.viewport);
 
+			// 경로 펄스 애니메이션
+			const currentRoute = useRouteStore.getState().route;
+			if (currentRoute !== null && currentRoute.length > 0) {
+				const currentStationMap = useStationStore.getState().stationMap;
+				updateRoutePulse(scene.routeLayer, currentRoute, currentStationMap);
+			}
+
 			// 성능 측정 (250ms throttle)
 			maybeUpdatePerfStore(
 				scene.app.ticker.FPS,
@@ -228,7 +257,7 @@ export function MapCanvas() {
 			animatorRef.current = null;
 			cleanupZoomPan();
 		};
-	}, [scene, stationScreenMap, stationGraph]);
+	}, [scene, stationScreenMap, stationGraph, transferMap]);
 
 	// selectedTrainNo 변경 시 ref 동기화
 	useEffect(() => {
@@ -252,11 +281,42 @@ export function MapCanvas() {
 	// 역 선택 또는 노선 필터 변경 시 linksLayer 딤 + 노선 alpha + stationAlpha 업데이트
 	useEffect(() => {
 		if (scene === null) return;
+		const hasRoute = route !== null && route.length > 0;
 		const active = selectedStation !== null;
-		scene.linksLayer.alpha = active ? 0.2 : 1.0;
+		scene.linksLayer.alpha = hasRoute ? 0.1 : active ? 0.2 : 1.0;
+		scene.stationsLayer.alpha = hasRoute ? 0.15 : 1.0;
 		updateLinksAlpha(scene.linksLayer, activeLines);
-		updateStationAlpha(scene.stationsLayer, STATIONS, selectedStation?.id ?? null, activeLines);
-	}, [scene, selectedStation, activeLines]);
+		if (!hasRoute) {
+			updateStationAlpha(scene.stationsLayer, STATIONS, selectedStation?.id ?? null, activeLines);
+		}
+	}, [scene, selectedStation, activeLines, route]);
+
+	// 경로 변경 시 routeLayer에 경로 렌더링 + 전체 경로가 보이도록 카메라 이동
+	useEffect(() => {
+		if (scene === null) return;
+		if (route !== null && route.length > 0) {
+			const stationMap = useStationStore.getState().stationMap;
+			drawRoute(scene.routeLayer, route, stationScreenMap, stationMap);
+			flyToRoute(scene.viewport, route, stationScreenMap);
+		} else {
+			scene.routeLayer.removeChildren();
+		}
+	}, [scene, route, stationScreenMap]);
+
+	// selectedStation 변경 시 flyToStation (검색에서 선택 시, 경로 모드가 아닐 때만)
+	const isRouteMode = useRouteStore((s) => s.isRouteMode);
+	const isRouteModeRef = useRef(isRouteMode);
+	useEffect(() => {
+		isRouteModeRef.current = isRouteMode;
+	}, [isRouteMode]);
+
+	useEffect(() => {
+		if (scene === null || selectedStation === null) return;
+		if (isRouteModeRef.current) return;
+		const coord = stationScreenMap.get(selectedStation.id);
+		if (coord === undefined) return;
+		flyToStation(scene.viewport, coord.x, coord.y);
+	}, [scene, selectedStation, stationScreenMap]);
 
 	return <div ref={containerRef} className="h-full w-full" />;
 }

@@ -64,9 +64,9 @@ describe("useMapStore — activeLines (simulation 모드)", () => {
 		expect(useMapStore.getState().activeLines.size).toBe(9);
 	});
 
-	it("syncLinesForMode: live 전환 시 1호선만, simulation 전환 시 9개 전체", () => {
+	it("syncLinesForMode: live 전환 시 1~8호선, simulation 전환 시 9개 전체", () => {
 		useMapStore.getState().syncLinesForMode("live");
-		expect(useMapStore.getState().activeLines).toEqual(new Set([1]));
+		expect(useMapStore.getState().activeLines).toEqual(new Set([1, 2, 3, 4, 5, 6, 7, 8]));
 		useMapStore.getState().syncLinesForMode("simulation");
 		expect(useMapStore.getState().activeLines.size).toBe(9);
 	});

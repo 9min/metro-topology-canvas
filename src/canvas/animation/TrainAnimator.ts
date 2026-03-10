@@ -42,8 +42,26 @@ function buildMultiPointPath(
 	const prevToStation = existing.toStationId;
 	const newFromStation = train.fromStationId;
 
-	// 같은 역이면 직선으로 충분
-	if (prevToStation === newFromStation || prevToStation === train.toStationId) {
+	// 같은 역이면: BFS 불필요하나 현재→목표 사이에 경유역이 있으면 waypoint 추가
+	if (prevToStation === newFromStation) {
+		const wayCoord = stationScreenMap.get(prevToStation);
+		if (wayCoord !== undefined) {
+			const ctsX = wayCoord.x - startPoint.x;
+			const ctsY = wayCoord.y - startPoint.y;
+			const cteX = endPoint.x - startPoint.x;
+			const cteY = endPoint.y - startPoint.y;
+			const dot = ctsX * cteX + ctsY * cteY;
+			const stationDist2 = ctsX * ctsX + ctsY * ctsY;
+			const targetDist2 = cteX * cteX + cteY * cteY;
+			// 역이 현재→목표 사이에 있을 때만 경유역으로 포함
+			if (dot > 0 && stationDist2 > 4 && stationDist2 < targetDist2) {
+				return [startPoint, { x: wayCoord.x, y: wayCoord.y }, endPoint];
+			}
+		}
+		return [startPoint, endPoint];
+	}
+
+	if (prevToStation === train.toStationId) {
 		return [startPoint, endPoint];
 	}
 
@@ -98,17 +116,39 @@ function updateExistingTrain(
 	existing.direction = train.direction;
 	existing.linear = linear;
 
-	const dx = train.x - existing.currentX;
-	const dy = train.y - existing.currentY;
-	existing.trackAngle =
-		Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01 ? Math.atan2(dy, dx) : train.trackAngle;
-
 	// path를 먼저 구성한 후 polyline 총거리로 텔레포트 여부를 판단한다
 	const path = buildMultiPointPath(existing, train, stationScreenMap, stationGraph);
 	existing.path = path;
 	existing.pathCumulativeDist = computeCumulativeDist(path);
 	const totalDist = existing.pathCumulativeDist[existing.pathCumulativeDist.length - 1] as number;
-	existing.duration = totalDist > MAX_TRAIN_ANIM_DIST ? 0 : animDuration;
+
+	// 텔레포트 판정: 거리 초과 또는 역방향 이동
+	let shouldTeleport = totalDist > MAX_TRAIN_ANIM_DIST;
+
+	if (!shouldTeleport) {
+		const newDirX = existing.targetX - existing.startX;
+		const newDirY = existing.targetY - existing.startY;
+		const newLen2 = newDirX * newDirX + newDirY * newDirY;
+		// train.trackAngle(매 폴링마다 역 토폴로지 기반으로 fresh하게 계산됨)과 이동 벡터의
+		// 내적이 음수면 역방향 → 텔레포트. prevDirX/prevDirY 방식은 텔레포트 후
+		// backward vector를 캡처하여 다음 폴링에서 오판(진동)을 유발하므로 사용하지 않는다.
+		if (newLen2 > 1) {
+			const expectedDirX = Math.cos(train.trackAngle);
+			const expectedDirY = Math.sin(train.trackAngle);
+			if (expectedDirX * newDirX + expectedDirY * newDirY < 0) {
+				shouldTeleport = true;
+			}
+		}
+	}
+
+	existing.duration = shouldTeleport ? 0 : animDuration;
+
+	// 텔레포트 또는 정지(동일 위치) 시 interpolation의 트랙 방향을 사용한다.
+	// 일반 애니메이션에서는 advanceTrainState가 프레임별로 이동 방향에서 갱신한다.
+	if (shouldTeleport || totalDist < 0.1) {
+		existing.trackAngle = train.trackAngle;
+	}
+
 	existing.fromStationId = train.fromStationId;
 	existing.toStationId = train.toStationId;
 }
@@ -165,6 +205,32 @@ function createNewTrainState(
 	};
 }
 
+/** polyline의 t 위치에서 현재 세그먼트 방향(라디안)을 반환한다 */
+function computeSegmentAngle(
+	path: PathPoint[],
+	cumulativeDist: number[],
+	t: number,
+): number | undefined {
+	const totalDist = cumulativeDist[cumulativeDist.length - 1] as number;
+	if (totalDist <= 0) return undefined;
+	const targetDist = t * totalDist;
+	for (let i = 1; i < cumulativeDist.length; i++) {
+		if (targetDist <= (cumulativeDist[i] as number)) {
+			const p0 = path[i - 1] as PathPoint;
+			const p1 = path[i] as PathPoint;
+			const dx = p1.x - p0.x;
+			const dy = p1.y - p0.y;
+			return dx * dx + dy * dy > 0.01 ? Math.atan2(dy, dx) : undefined;
+		}
+	}
+	// fallback: 마지막 세그먼트
+	const p0 = path[path.length - 2] as PathPoint;
+	const p1 = path[path.length - 1] as PathPoint;
+	const dx = p1.x - p0.x;
+	const dy = p1.y - p0.y;
+	return dx * dx + dy * dy > 0.01 ? Math.atan2(dy, dx) : undefined;
+}
+
 /** 누적 거리 기반으로 t(0~1)를 path 세그먼트에 매핑하여 보간한다 */
 function interpolateAlongPath(path: PathPoint[], cumulativeDist: number[], t: number): PathPoint {
 	const totalDist = cumulativeDist[cumulativeDist.length - 1] as number;
@@ -199,31 +265,31 @@ function interpolateAlongPath(path: PathPoint[], cumulativeDist: number[], t: nu
 
 /** 단일 열차의 프레임별 위치를 보간한다 */
 function advanceTrainState(state: AnimatedTrainState, now: number): void {
-	const prevX = state.currentX;
-	const prevY = state.currentY;
-
 	if (state.duration <= 0) {
 		state.currentX = state.targetX;
 		state.currentY = state.targetY;
-	} else {
-		const elapsed = now - state.startTime;
-		const rawT = Math.min(elapsed / state.duration, 1);
-		const t = state.linear ? rawT : easeInOutCubic(rawT);
-
-		if (state.path.length <= 2) {
-			state.currentX = state.startX + (state.targetX - state.startX) * t;
-			state.currentY = state.startY + (state.targetY - state.startY) * t;
-		} else {
-			const pos = interpolateAlongPath(state.path, state.pathCumulativeDist, t);
-			state.currentX = pos.x;
-			state.currentY = pos.y;
-		}
+		return; // trackAngle 유지
 	}
+	const elapsed = now - state.startTime;
+	const rawT = Math.min(elapsed / state.duration, 1);
+	const t = state.linear ? rawT : easeInOutCubic(rawT);
 
-	const frameDx = state.currentX - prevX;
-	const frameDy = state.currentY - prevY;
-	if (Math.abs(frameDx) > 0.1 || Math.abs(frameDy) > 0.1) {
-		state.trackAngle = Math.atan2(frameDy, frameDx);
+	if (state.path.length <= 2) {
+		state.currentX = state.startX + (state.targetX - state.startX) * t;
+		state.currentY = state.startY + (state.targetY - state.startY) * t;
+		const dx = state.targetX - state.startX;
+		const dy = state.targetY - state.startY;
+		if (dx * dx + dy * dy > 0.01) {
+			state.trackAngle = Math.atan2(dy, dx);
+		}
+	} else {
+		const pos = interpolateAlongPath(state.path, state.pathCumulativeDist, t);
+		state.currentX = pos.x;
+		state.currentY = pos.y;
+		const angle = computeSegmentAngle(state.path, state.pathCumulativeDist, t);
+		if (angle !== undefined) {
+			state.trackAngle = angle;
+		}
 	}
 }
 
@@ -289,7 +355,7 @@ export class TrainAnimator {
 		stationGraph?: StationGraph,
 	): void {
 		const existing = this.states.get(train.trainNo);
-		if (existing !== undefined && existing.direction === train.direction) {
+		if (existing !== undefined) {
 			updateExistingTrain(
 				existing,
 				train,

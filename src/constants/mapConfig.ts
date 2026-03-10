@@ -30,11 +30,14 @@ export const LINE_WIDTH = 2.6;
 /** 열차 입자 반지름 (px) */
 export const TRAIN_PARTICLE_RADIUS = 3;
 
-/** API 폴링 주기 (ms) — 30초 */
-export const POLLING_INTERVAL_MS = 30_000;
+/** SMSS 폴링 주기 (ms) — 10초 (1~8호선, 한도 없음) */
+export const SMSS_POLLING_INTERVAL_MS = 10_000;
 
-/** 열차 애니메이션 지속 시간 (ms) — 폴링 전체 주기를 채워 연속 이동처럼 보이게 한다 */
-export const TRAIN_ANIMATION_DURATION_MS = POLLING_INTERVAL_MS;
+/** 서울열린데이터광장 API 폴링 주기 (ms) — 30초 (9호선, 일일 한도 있음) */
+export const API_POLLING_INTERVAL_MS = 30_000;
+
+/** 열차 애니메이션 지속 시간 (ms) — SMSS 주기에 맞춰 연속 이동처럼 보이게 한다 */
+export const TRAIN_ANIMATION_DURATION_MS = SMSS_POLLING_INTERVAL_MS;
 
 /** 신규 열차 페이드인 시간 (ms) */
 export const TRAIN_FADEIN_MS = 500;
@@ -42,17 +45,17 @@ export const TRAIN_FADEIN_MS = 500;
 /** 시뮬레이션 모드 폴링 주기 (ms) — 짧은 주기로 끊김 없는 연속 이동 */
 export const SIMULATION_TICK_MS = 6_000;
 
-/** 시뮬레이션 모드 노선별 열차 수 (상행 + 하행) — 총 250대 */
+/** 시뮬레이션 모드 노선별 열차 수 (상행 + 하행) — 총 300대 */
 export const SIMULATION_TRAINS_PER_LINE: Record<number, number> = {
-	1: 40,
-	2: 30,
-	3: 28,
-	4: 28,
-	5: 32,
-	6: 22,
-	7: 28,
-	8: 18,
-	9: 24,
+	1: 48,
+	2: 36,
+	3: 34,
+	4: 34,
+	5: 38,
+	6: 26,
+	7: 34,
+	8: 22,
+	9: 28,
 };
 
 /** 열차 캡슐 반길이 (이동 방향 축, px) */

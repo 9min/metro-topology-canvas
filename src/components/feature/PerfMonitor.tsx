@@ -1,3 +1,4 @@
+import { OVERLAY_TOOLBAR } from "@/constants/overlayStyles";
 import { usePerfStore } from "@/stores/usePerfStore";
 
 /** FPS 값에 따른 색상 클래스를 반환한다 */
@@ -17,7 +18,9 @@ export function PerfMonitor() {
 	if (!visible) return null;
 
 	return (
-		<div className="pointer-events-auto fixed right-4 bottom-4 rounded-lg bg-black/70 px-3 py-2 font-mono text-xs backdrop-blur-sm">
+		<div
+			className={`pointer-events-auto absolute right-4 bottom-4 ${OVERLAY_TOOLBAR} px-3 py-2 font-mono text-xs`}
+		>
 			<div className={fpsColor(fps)}>FPS: {Math.round(fps)}</div>
 			<div className="text-gray-300">Render: {renderTimeMs.toFixed(1)}ms</div>
 			<div className="text-gray-300">Trains: {activeTrainCount}</div>

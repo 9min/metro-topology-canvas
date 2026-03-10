@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
 import { IconButton } from "@/components/ui/IconButton";
+import { OVERLAY_PANEL } from "@/constants/overlayStyles";
 import { useStationStore } from "@/stores/useStationStore";
 import { useTrainStore } from "@/stores/useTrainStore";
 
@@ -23,7 +24,9 @@ export function TrainPanel() {
 			{/* 외부 영역 클릭 시 패널 닫기 */}
 			{/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: 백드롭은 마우스 전용 */}
 			<div className="pointer-events-auto absolute inset-0" onClick={() => selectTrain(null)} />
-			<div className="pointer-events-auto absolute left-6 bottom-6 min-w-[240px] rounded-xl border border-white/10 bg-gray-900/90 p-4 shadow-2xl backdrop-blur-md">
+			<div
+				className={`pointer-events-auto absolute left-4 bottom-4 min-w-[240px] ${OVERLAY_PANEL} p-4`}
+			>
 				<div className="mb-3 flex items-start justify-between gap-2">
 					<h2 className="text-lg font-bold text-white">{train.trainNo}</h2>
 					<IconButton onClick={() => selectTrain(null)} label="패널 닫기">

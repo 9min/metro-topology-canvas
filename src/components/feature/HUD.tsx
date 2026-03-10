@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ModeSwitch } from "@/components/feature/ModeSwitch";
+import { OVERLAY_PANEL } from "@/constants/overlayStyles";
 import { useSimulationStore } from "@/stores/useSimulationStore";
 import { useTrainStore } from "@/stores/useTrainStore";
 
@@ -36,17 +37,17 @@ export function HUD() {
 	}, []);
 
 	return (
-		<div className="pointer-events-none absolute top-6 left-6 flex flex-col gap-2">
+		<div className="pointer-events-none absolute top-4 left-4 flex flex-col gap-2">
 			{/* 모드 전환 */}
 			<ModeSwitch />
 
 			{/* 운행 현황 카드 */}
-			<div className="w-48 rounded-xl border border-white/10 bg-gray-900/85 px-4 py-3 shadow-xl backdrop-blur-md">
+			<div className={`w-48 ${OVERLAY_PANEL} px-4 py-3`}>
 				<div className="mb-2 flex items-center gap-2">
 					{!isSimulation && isPollingActive ? (
 						<span className="inline-flex items-center gap-1 rounded bg-red-600 px-1.5 py-0.5 animate-pulse">
 							<span className="inline-block h-1.5 w-1.5 rounded-full bg-white" />
-							<span className="text-[10px] font-bold leading-none text-white">LIVE</span>
+							<span className="text-xs font-bold leading-none text-white">LIVE</span>
 						</span>
 					) : (
 						<span
@@ -64,7 +65,7 @@ export function HUD() {
 					<span className="ml-1 text-sm font-normal text-gray-400">대</span>
 				</p>
 				<p className="mt-1 text-xs text-gray-500">{formatElapsed(lastFetchedAt, now)} 업데이트</p>
-				{!isSimulation && <p className="mt-1 text-[10px] text-gray-600">서울교통공사 실시간 API</p>}
+				{!isSimulation && <p className="mt-1 text-xs text-gray-600">서울교통공사 실시간 API</p>}
 			</div>
 
 			{/* 에러 배너 */}

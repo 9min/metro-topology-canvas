@@ -1,23 +1,34 @@
 import { useCallback, useEffect, useRef } from "react";
-import { POLLING_INTERVAL_MS } from "@/constants/mapConfig";
-import { fetchAllTrains } from "@/services/trainApi";
+import { API_POLLING_INTERVAL_MS, SMSS_POLLING_INTERVAL_MS } from "@/constants/mapConfig";
+import { fetchAllTrains, fetchTrainsFromSmss } from "@/services/trainApi";
 import { useMapStore } from "@/stores/useMapStore";
 import { useSimulationStore } from "@/stores/useSimulationStore";
 import { useTrainStore } from "@/stores/useTrainStore";
 import type { ScreenCoord } from "@/types/map";
 import type { Station } from "@/types/station";
 import type { TrainPosition } from "@/types/train";
-import { isOperatingHours, msUntilOperatingStart } from "@/utils/operatingHours";
 import {
 	type AdjacencyInfo,
 	buildStationNameMap,
 	resolveStationId,
 } from "@/utils/stationNameResolver";
 
+/** 역명을 station ID로 매핑하여 유효한 열차만 반환한다 */
+function resolveTrains(rawTrains: TrainPosition[], nameMap: Map<string, string>): TrainPosition[] {
+	const resolved: TrainPosition[] = [];
+	for (const train of rawTrains) {
+		const stationId = resolveStationId(nameMap, train.line, train.stationName);
+		if (stationId !== undefined) {
+			resolved.push({ ...train, stationId });
+		}
+	}
+	return resolved;
+}
+
 /**
  * 실시간 열차 위치 폴링을 오케스트레이션한다.
- * - 마운트 시 최초 fetch
- * - setInterval로 90초 주기 반복
+ * - 1~8호선: SMSS 프록시 (10초 주기)
+ * - 9호선: 서울열린데이터광장 API (30초 주기)
  * - visibilitychange로 탭 비활성 시 중단/재개
  * - activeLines 변경 시 폴링 재시작
  */
@@ -28,104 +39,112 @@ export function useTrainPolling(
 ): void {
 	const mode = useSimulationStore((s) => s.mode);
 	const activeLines = useMapStore((s) => s.activeLines);
-	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+	const smssIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+	const apiIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const updatePositions = useTrainStore((s) => s.updatePositions);
 	const setFetchError = useTrainStore((s) => s.setFetchError);
 	const setPollingActive = useTrainStore((s) => s.setPollingActive);
 
 	const nameMapRef = useRef<Map<string, string>>(new Map());
 
-	// activeLines를 직렬화하여 useEffect 의존성으로 사용
+	// 각 소스의 최신 데이터를 보관하여 합산에 사용한다
+	const latestSmssRef = useRef<TrainPosition[]>([]);
+	const latestApiRef = useRef<TrainPosition[]>([]);
+
 	const activeLinesKey = Array.from(activeLines).sort().join(",");
 
-	// stations가 변경될 때 역명 매핑 갱신
 	useEffect(() => {
 		nameMapRef.current = buildStationNameMap(stations);
 	}, [stations]);
 
-	const poll = useCallback(async () => {
-		const lines = Array.from(useMapStore.getState().activeLines);
-		if (lines.length === 0) return;
+	/** 두 소스의 최신 데이터를 합쳐 스토어에 반영한다 */
+	const mergeAndUpdate = useCallback(() => {
+		const merged = [...latestSmssRef.current, ...latestApiRef.current];
+		updatePositions(merged, stationScreenMap, adjacencyMap);
+	}, [updatePositions, stationScreenMap, adjacencyMap]);
+
+	/** SMSS 폴링 (1~8호선) */
+	const pollSmss = useCallback(async () => {
+		const lines = Array.from(useMapStore.getState().activeLines).filter((l) => l <= 8);
+		if (lines.length === 0) {
+			latestSmssRef.current = [];
+			mergeAndUpdate();
+			return;
+		}
 
 		try {
-			const rawTrains = await fetchAllTrains(lines);
-
-			// 역명 → station ID 매핑
-			const resolved: TrainPosition[] = [];
-			for (const train of rawTrains) {
-				const stationId = resolveStationId(nameMapRef.current, train.line, train.stationName);
-				if (stationId !== undefined) {
-					resolved.push({ ...train, stationId });
-				}
-			}
-
-			updatePositions(resolved, stationScreenMap, adjacencyMap);
+			const raw = await fetchTrainsFromSmss(lines);
+			latestSmssRef.current = resolveTrains(raw, nameMapRef.current);
+			mergeAndUpdate();
 		} catch {
-			setFetchError("열차 위치 데이터를 가져오는데 실패했습니다");
+			setFetchError("SMSS 열차 위치 데이터를 가져오는데 실패했습니다");
 		}
-	}, [updatePositions, setFetchError, stationScreenMap, adjacencyMap]);
+	}, [mergeAndUpdate, setFetchError]);
+
+	/** API 폴링 (9호선) */
+	const pollApi = useCallback(async () => {
+		const lines = Array.from(useMapStore.getState().activeLines).filter((l) => l === 9);
+		if (lines.length === 0) {
+			latestApiRef.current = [];
+			mergeAndUpdate();
+			return;
+		}
+
+		try {
+			const raw = await fetchAllTrains(lines);
+			latestApiRef.current = resolveTrains(raw, nameMapRef.current);
+			mergeAndUpdate();
+		} catch {
+			setFetchError("9호선 열차 위치 데이터를 가져오는데 실패했습니다");
+		}
+	}, [mergeAndUpdate, setFetchError]);
 
 	const startPolling = useCallback(() => {
-		if (intervalRef.current !== null) return;
+		if (smssIntervalRef.current !== null) return;
 		setPollingActive(true);
-		poll();
-		intervalRef.current = setInterval(poll, POLLING_INTERVAL_MS);
-	}, [poll, setPollingActive]);
+
+		// 최초 즉시 실행
+		pollSmss();
+		pollApi();
+
+		smssIntervalRef.current = setInterval(pollSmss, SMSS_POLLING_INTERVAL_MS);
+		apiIntervalRef.current = setInterval(pollApi, API_POLLING_INTERVAL_MS);
+	}, [pollSmss, pollApi, setPollingActive]);
 
 	const stopPolling = useCallback(() => {
-		if (intervalRef.current !== null) {
-			clearInterval(intervalRef.current);
-			intervalRef.current = null;
+		if (smssIntervalRef.current !== null) {
+			clearInterval(smssIntervalRef.current);
+			smssIntervalRef.current = null;
+		}
+		if (apiIntervalRef.current !== null) {
+			clearInterval(apiIntervalRef.current);
+			apiIntervalRef.current = null;
 		}
 		setPollingActive(false);
 	}, [setPollingActive]);
 
-	// 운행 시간이면 폴링을 시작하고, 비운행 시간이면 다음 운행 시작까지 대기
-	const scheduleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-	const startIfOperating = useCallback(() => {
-		if (isOperatingHours()) {
-			startPolling();
-		} else {
-			stopPolling();
-			// 다음 운행 시작 시각에 자동 재개
-			const delay = msUntilOperatingStart();
-			scheduleRef.current = setTimeout(() => {
-				scheduleRef.current = null;
-				startIfOperating();
-			}, delay);
-		}
-	}, [startPolling, stopPolling]);
-
-	// 마운트 시 폴링 시작, 언마운트 시 정리
-	// activeLinesKey를 의존성에 포함하여 호선 변경 시 폴링을 재시작한다
 	useEffect(() => {
-		// activeLinesKey를 effect 내부에서 참조하여 Biome exhaustive-deps 충족
 		void activeLinesKey;
 
-		// 시뮬레이션 모드이면 API 폴링 중단
 		if (mode !== "live") {
 			stopPolling();
 			return;
 		}
 
-		// stationScreenMap이 비어있으면 아직 준비되지 않음
 		if (stationScreenMap.size === 0) return;
 
 		// 호선 변경 시 이전 데이터 클리어
+		latestSmssRef.current = [];
+		latestApiRef.current = [];
 		useTrainStore.getState().clearPositions();
 
-		startIfOperating();
+		startPolling();
 
 		const handleVisibility = (): void => {
 			if (document.hidden) {
 				stopPolling();
-				if (scheduleRef.current !== null) {
-					clearTimeout(scheduleRef.current);
-					scheduleRef.current = null;
-				}
 			} else {
-				startIfOperating();
+				startPolling();
 			}
 		};
 
@@ -133,11 +152,7 @@ export function useTrainPolling(
 
 		return () => {
 			stopPolling();
-			if (scheduleRef.current !== null) {
-				clearTimeout(scheduleRef.current);
-				scheduleRef.current = null;
-			}
 			document.removeEventListener("visibilitychange", handleVisibility);
 		};
-	}, [mode, activeLinesKey, startIfOperating, stopPolling, stationScreenMap]);
+	}, [mode, activeLinesKey, startPolling, stopPolling, stationScreenMap]);
 }

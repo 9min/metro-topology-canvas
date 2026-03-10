@@ -11,8 +11,10 @@ export function AppLayout({ canvas, panel }: AppLayoutProps) {
 	return (
 		<div className="relative h-screen w-screen overflow-hidden bg-[#0a0a0f]">
 			<div className="h-full w-full">{canvas}</div>
-			<div className="pointer-events-none absolute inset-0">{panel}</div>
-			<PerfMonitor />
+			<div className="pointer-events-none absolute inset-0">
+				{panel}
+				<PerfMonitor />
+			</div>
 		</div>
 	);
 }

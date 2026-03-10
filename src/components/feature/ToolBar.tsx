@@ -1,3 +1,4 @@
+import { OVERLAY_TOOLBAR } from "@/constants/overlayStyles";
 import { useMapStore } from "@/stores/useMapStore";
 import { usePerfStore } from "@/stores/usePerfStore";
 
@@ -11,7 +12,9 @@ export function ToolBar() {
 	const togglePerf = usePerfStore((s) => s.toggleVisible);
 
 	return (
-		<div className="pointer-events-auto absolute top-4 right-6 flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-2 backdrop-blur-sm">
+		<div
+			className={`pointer-events-auto absolute top-4 right-4 flex items-center gap-1.5 ${OVERLAY_TOOLBAR} px-3 py-2`}
+		>
 			<button
 				type="button"
 				onClick={toggleHeatmap}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { StationLink } from "@/types/station";
+import type { Station, StationLink } from "@/types/station";
 import { buildStationGraph, findStationPath } from "@/utils/pathFinder";
+import { buildTransferLinks, buildTransferMap } from "@/utils/transferStation";
 
 const TEST_LINKS: StationLink[] = [
 	{ source: "A", target: "B", line: 1 },
@@ -63,5 +64,35 @@ describe("findStationPath", () => {
 	it("분기역을 통과하는 경로를 탐색한다", () => {
 		const path = findStationPath(graph, "A", "G");
 		expect(path).toEqual(["A", "B", "C", "F", "G"]);
+	});
+});
+
+describe("환승 링크를 포함한 크로스라인 경로 탐색", () => {
+	const CROSS_STATIONS: Station[] = [
+		{ id: "L1S01", name: "서울역", line: 1, x: 0, y: 0 },
+		{ id: "L1S02", name: "시청", line: 1, x: 0, y: 0 },
+		{ id: "L2S01", name: "시청", line: 2, x: 0, y: 0 },
+		{ id: "L2S02", name: "을지로입구", line: 2, x: 0, y: 0 },
+	];
+
+	const CROSS_LINKS: StationLink[] = [
+		{ source: "L1S01", target: "L1S02", line: 1 },
+		{ source: "L2S01", target: "L2S02", line: 2 },
+	];
+
+	it("환승을 포함한 크로스라인 경로를 찾는다", () => {
+		const transferMap = buildTransferMap(CROSS_STATIONS);
+		const transferLinks = buildTransferLinks(transferMap);
+		const allLinks = [...CROSS_LINKS, ...transferLinks];
+		const graph = buildStationGraph(allLinks);
+
+		const path = findStationPath(graph, "L1S01", "L2S02");
+		expect(path).toEqual(["L1S01", "L1S02", "L2S01", "L2S02"]);
+	});
+
+	it("환승 링크 없이는 다른 노선 역에 도달할 수 없다", () => {
+		const graph = buildStationGraph(CROSS_LINKS);
+		const path = findStationPath(graph, "L1S01", "L2S02");
+		expect(path).toEqual([]);
 	});
 });
