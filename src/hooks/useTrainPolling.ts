@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { POLLING_INTERVAL_MS } from "@/constants/mapConfig";
 import { fetchAllTrains } from "@/services/trainApi";
+import { useMapStore } from "@/stores/useMapStore";
 import { useSimulationStore } from "@/stores/useSimulationStore";
 import { useTrainStore } from "@/stores/useTrainStore";
 import type { ScreenCoord } from "@/types/map";
@@ -18,6 +19,7 @@ import {
  * - 마운트 시 최초 fetch
  * - setInterval로 90초 주기 반복
  * - visibilitychange로 탭 비활성 시 중단/재개
+ * - activeLines 변경 시 폴링 재시작
  */
 export function useTrainPolling(
 	stations: Station[],
@@ -25,6 +27,7 @@ export function useTrainPolling(
 	adjacencyMap: Map<string, AdjacencyInfo>,
 ): void {
 	const mode = useSimulationStore((s) => s.mode);
+	const activeLines = useMapStore((s) => s.activeLines);
 	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const updatePositions = useTrainStore((s) => s.updatePositions);
 	const setFetchError = useTrainStore((s) => s.setFetchError);
@@ -32,14 +35,20 @@ export function useTrainPolling(
 
 	const nameMapRef = useRef<Map<string, string>>(new Map());
 
+	// activeLines를 직렬화하여 useEffect 의존성으로 사용
+	const activeLinesKey = Array.from(activeLines).sort().join(",");
+
 	// stations가 변경될 때 역명 매핑 갱신
 	useEffect(() => {
 		nameMapRef.current = buildStationNameMap(stations);
 	}, [stations]);
 
 	const poll = useCallback(async () => {
+		const lines = Array.from(useMapStore.getState().activeLines);
+		if (lines.length === 0) return;
+
 		try {
-			const rawTrains = await fetchAllTrains();
+			const rawTrains = await fetchAllTrains(lines);
 
 			// 역명 → station ID 매핑
 			const resolved: TrainPosition[] = [];
@@ -89,7 +98,11 @@ export function useTrainPolling(
 	}, [startPolling, stopPolling]);
 
 	// 마운트 시 폴링 시작, 언마운트 시 정리
+	// activeLinesKey를 의존성에 포함하여 호선 변경 시 폴링을 재시작한다
 	useEffect(() => {
+		// activeLinesKey를 effect 내부에서 참조하여 Biome exhaustive-deps 충족
+		void activeLinesKey;
+
 		// 시뮬레이션 모드이면 API 폴링 중단
 		if (mode !== "live") {
 			stopPolling();
@@ -98,6 +111,9 @@ export function useTrainPolling(
 
 		// stationScreenMap이 비어있으면 아직 준비되지 않음
 		if (stationScreenMap.size === 0) return;
+
+		// 호선 변경 시 이전 데이터 클리어
+		useTrainStore.getState().clearPositions();
 
 		startIfOperating();
 
@@ -123,5 +139,5 @@ export function useTrainPolling(
 			}
 			document.removeEventListener("visibilitychange", handleVisibility);
 		};
-	}, [mode, startIfOperating, stopPolling, stationScreenMap]);
+	}, [mode, activeLinesKey, startIfOperating, stopPolling, stationScreenMap]);
 }

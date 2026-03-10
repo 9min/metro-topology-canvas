@@ -34,6 +34,11 @@
 			}
 		}
 	},
+	"css": {
+		"parser": { "cssModules": false, "tailwindDirectives": true },
+		"linter": { "enabled": true },
+		"formatter": { "enabled": true }
+	},
 	"javascript": {
 		"formatter": {
 			"quoteStyle": "double",

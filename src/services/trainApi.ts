@@ -107,13 +107,9 @@ export async function fetchLineTrains(lineNumber: number): Promise<TrainPosition
 	}
 }
 
-/** 현재 활성화된 호선만 폴링 (나머지 노선은 추후 오픈 예정) */
-const ENABLED_LINES = [1];
-
 /** 실시간 열차 위치를 병렬로 가져온다 */
-export async function fetchAllTrains(): Promise<TrainPosition[]> {
-	const lineNumbers = ENABLED_LINES;
-	const results = await Promise.allSettled(lineNumbers.map((n) => fetchLineTrains(n)));
+export async function fetchAllTrains(lines: number[]): Promise<TrainPosition[]> {
+	const results = await Promise.allSettled(lines.map((n) => fetchLineTrains(n)));
 
 	const allTrains: TrainPosition[] = [];
 	for (const result of results) {

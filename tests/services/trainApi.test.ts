@@ -85,7 +85,7 @@ describe("fetchAllTrains", () => {
 		vi.unstubAllEnvs();
 	});
 
-	it("호선 결과를 병합한다 (DEV 모드: 4호선만, PROD: 9개 전체)", async () => {
+	it("전달된 호선만 병렬 호출한다", async () => {
 		vi.stubGlobal(
 			"fetch",
 			vi.fn().mockResolvedValue({
@@ -94,10 +94,8 @@ describe("fetchAllTrains", () => {
 			}),
 		);
 
-		const trains = await fetchAllTrains();
-		// DEV 모드: 1호선 × 2개 = 2개, PROD: 9호선 × 2개 = 18개
-		const expectedPerLine = 2;
-		const lineCount = import.meta.env.DEV ? 1 : 9;
-		expect(trains).toHaveLength(expectedPerLine * lineCount);
+		const trains = await fetchAllTrains([1]);
+		// 1호선 × 2개 = 2개
+		expect(trains).toHaveLength(2);
 	});
 });

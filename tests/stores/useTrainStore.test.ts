@@ -42,6 +42,7 @@ describe("useTrainStore", () => {
 			fetchError: null,
 			isPollingActive: false,
 			selectedTrainNo: null,
+			prevPollMap: new Map(),
 		});
 	});
 
@@ -93,5 +94,34 @@ describe("useTrainStore", () => {
 		useTrainStore.getState().selectTrain("1001");
 		useTrainStore.getState().selectTrain(null);
 		expect(useTrainStore.getState().selectedTrainNo).toBeNull();
+	});
+
+	it("최초 폴링 시 repeatCount가 1이다", () => {
+		useTrainStore.getState().updatePositions(MOCK_TRAINS, SCREEN_MAP, ADJ_MAP);
+		const state = useTrainStore.getState();
+		const entry = state.prevPollMap.get("1001");
+		expect(entry).toBeDefined();
+		expect(entry?.repeatCount).toBe(1);
+	});
+
+	it("동일 상태 연속 폴링 시 repeatCount가 증가한다", () => {
+		useTrainStore.getState().updatePositions(MOCK_TRAINS, SCREEN_MAP, ADJ_MAP);
+		// 같은 데이터로 다시 폴링
+		useTrainStore.getState().updatePositions(MOCK_TRAINS, SCREEN_MAP, ADJ_MAP);
+		const state = useTrainStore.getState();
+		const entry = state.prevPollMap.get("1001");
+		expect(entry?.repeatCount).toBe(2);
+	});
+
+	it("상태 또는 역이 변경되면 repeatCount가 리셋된다", () => {
+		useTrainStore.getState().updatePositions(MOCK_TRAINS, SCREEN_MAP, ADJ_MAP);
+		useTrainStore.getState().updatePositions(MOCK_TRAINS, SCREEN_MAP, ADJ_MAP);
+		// 상태 변경
+		const baseTrain = MOCK_TRAINS[0];
+		if (baseTrain === undefined) throw new Error("테스트 데이터 오류");
+		const changed: TrainPosition[] = [{ ...baseTrain, status: "출발" }];
+		useTrainStore.getState().updatePositions(changed, SCREEN_MAP, ADJ_MAP);
+		const entry = useTrainStore.getState().prevPollMap.get("1001");
+		expect(entry?.repeatCount).toBe(1);
 	});
 });

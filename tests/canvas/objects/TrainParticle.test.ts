@@ -10,8 +10,20 @@ class MockGraphics {
 	label = "";
 	eventMode = "none";
 	cursor = "default";
+	scale = { set: vi.fn() };
 	on = vi.fn();
 
+	private _children: MockGraphics[] = [];
+
+	addChild(child: MockGraphics) {
+		this._children.push(child);
+	}
+	getChildByLabel(label: string): MockGraphics | null {
+		return this._children.find((c) => c.label === label) ?? null;
+	}
+	clear() {
+		return this;
+	}
 	circle() {
 		return this;
 	}
@@ -76,6 +88,8 @@ const MOCK_TRAIN: AnimatedTrainState = {
 	duration: 0,
 	fromStationId: "S01",
 	toStationId: "S02",
+	path: [{ x: 100, y: 100 }],
+	pathCumulativeDist: [0],
 };
 
 const MOCK_TRAIN_2: AnimatedTrainState = {

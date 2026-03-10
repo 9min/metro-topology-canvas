@@ -13,7 +13,7 @@ export function IconButton({ onClick, label, children }: IconButtonProps) {
 			type="button"
 			onClick={onClick}
 			aria-label={label}
-			className="flex items-center justify-center rounded-full p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+			className="flex cursor-pointer items-center justify-center rounded-full p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
 		>
 			{children}
 		</button>

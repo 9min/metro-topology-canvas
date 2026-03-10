@@ -43,12 +43,18 @@ export function HUD() {
 			{/* 운행 현황 카드 */}
 			<div className="w-48 rounded-xl border border-white/10 bg-gray-900/85 px-4 py-3 shadow-xl backdrop-blur-md">
 				<div className="mb-2 flex items-center gap-2">
-					{/* 폴링 인디케이터 */}
-					<span
-						className={`inline-block h-2 w-2 rounded-full ${
-							isPollingActive ? `animate-pulse ${indicatorColor}` : "bg-gray-500"
-						}`}
-					/>
+					{!isSimulation && isPollingActive ? (
+						<span className="inline-flex items-center gap-1 rounded bg-red-600 px-1.5 py-0.5 animate-pulse">
+							<span className="inline-block h-1.5 w-1.5 rounded-full bg-white" />
+							<span className="text-[10px] font-bold leading-none text-white">LIVE</span>
+						</span>
+					) : (
+						<span
+							className={`inline-block h-2 w-2 rounded-full ${
+								isPollingActive ? `animate-pulse ${indicatorColor}` : "bg-gray-500"
+							}`}
+						/>
+					)}
 					<span className="text-xs font-semibold tracking-wide text-gray-300 uppercase">
 						{modeLabel}
 					</span>
@@ -58,6 +64,7 @@ export function HUD() {
 					<span className="ml-1 text-sm font-normal text-gray-400">대</span>
 				</p>
 				<p className="mt-1 text-xs text-gray-500">{formatElapsed(lastFetchedAt, now)} 업데이트</p>
+				{!isSimulation && <p className="mt-1 text-[10px] text-gray-600">서울교통공사 실시간 API</p>}
 			</div>
 
 			{/* 에러 배너 */}

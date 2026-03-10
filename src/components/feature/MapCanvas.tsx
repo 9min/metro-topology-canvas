@@ -38,6 +38,7 @@ import { useStationStore } from "@/stores/useStationStore";
 import { useTrainStore } from "@/stores/useTrainStore";
 import type { Station, StationLink } from "@/types/station";
 import { easeInOutCubic } from "@/utils/easing";
+import { buildStationGraph } from "@/utils/pathFinder";
 import { buildAdjacencyMap } from "@/utils/stationNameResolver";
 
 const STATIONS = stationsData as Station[];
@@ -98,6 +99,7 @@ export function MapCanvas() {
 	const mode = useSimulationStore((state) => state.mode);
 
 	const adjacencyMap = useMemo(() => buildAdjacencyMap(LINKS), []);
+	const stationGraph = useMemo(() => buildStationGraph(LINKS), []);
 	const animatorRef = useRef<TrainAnimator | null>(null);
 	const selectedTrainNoRef = useRef<string | null>(null);
 	const trailMapRef = useRef<Map<string, TrailQueue>>(new Map());
@@ -151,7 +153,7 @@ export function MapCanvas() {
 		// scene 재생성 시 스토어의 기존 열차 데이터로 즉시 복원
 		const existingTrains = useTrainStore.getState().interpolatedTrains;
 		if (existingTrains.length > 0) {
-			animator.setTargets(existingTrains);
+			animator.setTargets(existingTrains, undefined, false, stationScreenMap, stationGraph);
 		}
 
 		// 모션 트레일용 Graphics (단일 인스턴스 재사용)
@@ -185,10 +187,12 @@ export function MapCanvas() {
 
 			// 혼잡도 히트맵 (조건부, 30프레임마다)
 			const isHeatmapOn = useMapStore.getState().heatmapEnabled;
-			scene.heatmapLayer.visible = isHeatmapOn;
-			if (isHeatmapOn && frameCount % CONGESTION_UPDATE_FRAMES === 0) {
-				const congestion = computeLinkCongestion(LINKS, trainList);
-				drawCongestionHeatmap(heatmapGfx, LINKS, stationScreenMap, congestion);
+			const hasActiveLines = currentActiveLines.size > 0;
+			scene.heatmapLayer.visible = isHeatmapOn && hasActiveLines;
+			if (isHeatmapOn && hasActiveLines && frameCount % CONGESTION_UPDATE_FRAMES === 0) {
+				const activeLinks = LINKS.filter((l) => currentActiveLines.has(l.line));
+				const congestion = computeLinkCongestion(activeLinks, trainList);
+				drawCongestionHeatmap(heatmapGfx, activeLinks, stationScreenMap, congestion);
 			}
 
 			// 시맨틱 줌: 줌 배율에 따라 레이블 alpha + 충돌 감지
@@ -224,7 +228,7 @@ export function MapCanvas() {
 			animatorRef.current = null;
 			cleanupZoomPan();
 		};
-	}, [scene, stationScreenMap]);
+	}, [scene, stationScreenMap, stationGraph]);
 
 	// selectedTrainNo 변경 시 ref 동기화
 	useEffect(() => {
@@ -235,9 +239,15 @@ export function MapCanvas() {
 	useEffect(() => {
 		if (animatorRef.current === null) return;
 		const duration = mode === "simulation" ? SIMULATION_TICK_MS : undefined;
-		const linear = mode === "simulation";
-		animatorRef.current.setTargets(interpolatedTrains, duration, linear);
-	}, [interpolatedTrains, mode]);
+		const linear = true;
+		animatorRef.current.setTargets(
+			interpolatedTrains,
+			duration,
+			linear,
+			stationScreenMap,
+			stationGraph,
+		);
+	}, [interpolatedTrains, mode, stationScreenMap, stationGraph]);
 
 	// 역 선택 또는 노선 필터 변경 시 linksLayer 딤 + 노선 alpha + stationAlpha 업데이트
 	useEffect(() => {

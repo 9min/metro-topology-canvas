@@ -23,6 +23,7 @@ function makeTrain(trainNo: string, line: number, x: number, y: number): Animate
 		fromStationId: "s1",
 		toStationId: "s2",
 		path: [{ x, y }],
+		pathCumulativeDist: [0],
 	};
 }
 

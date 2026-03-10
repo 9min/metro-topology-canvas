@@ -23,6 +23,7 @@ function makeTrain(
 		fromStationId,
 		toStationId,
 		path: [{ x: 0, y: 0 }],
+		pathCumulativeDist: [0],
 	};
 }
 

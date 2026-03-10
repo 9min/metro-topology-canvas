@@ -20,17 +20,24 @@ describe("useMapStore — activeLines (live 모드)", () => {
 		expect(useMapStore.getState().activeLines.has(1)).toBe(true);
 	});
 
-	it("toggleLine: 활성화 불가 노선(2호선)은 토글되지 않는다", () => {
-		useMapStore.getState().toggleLine(2, LIVE_ENABLED);
-		expect(useMapStore.getState().activeLines.has(2)).toBe(false);
-		expect(useMapStore.getState().activeLines.size).toBe(1);
+	it("selectSingleLine: 3호선 선택 시 해당 호선만 활성화된다", () => {
+		useMapStore.getState().selectSingleLine(3);
+		const lines = useMapStore.getState().activeLines;
+		expect(lines.size).toBe(1);
+		expect(lines.has(3)).toBe(true);
 	});
 
-	it("setAllLinesActive(true): live 모드에서 1호선만 활성화한다", () => {
+	it("selectSingleLine: 연속 호선 전환이 정상 동작한다", () => {
+		useMapStore.getState().selectSingleLine(5);
+		expect(useMapStore.getState().activeLines).toEqual(new Set([5]));
+		useMapStore.getState().selectSingleLine(7);
+		expect(useMapStore.getState().activeLines).toEqual(new Set([7]));
+	});
+
+	it("setAllLinesActive(true): live 모드에서 9개 노선 모두 활성화한다", () => {
 		useMapStore.setState({ activeLines: new Set() });
 		useMapStore.getState().setAllLinesActive(true, LIVE_ENABLED);
-		expect(useMapStore.getState().activeLines.size).toBe(1);
-		expect(useMapStore.getState().activeLines.has(1)).toBe(true);
+		expect(useMapStore.getState().activeLines.size).toBe(9);
 	});
 
 	it("setAllLinesActive(false): 모든 노선을 비활성화한다", () => {
@@ -57,9 +64,9 @@ describe("useMapStore — activeLines (simulation 모드)", () => {
 		expect(useMapStore.getState().activeLines.size).toBe(9);
 	});
 
-	it("syncLinesForMode: 모드 전환 시 activeLines 동기화", () => {
+	it("syncLinesForMode: live 전환 시 1호선만, simulation 전환 시 9개 전체", () => {
 		useMapStore.getState().syncLinesForMode("live");
-		expect(useMapStore.getState().activeLines.size).toBe(1);
+		expect(useMapStore.getState().activeLines).toEqual(new Set([1]));
 		useMapStore.getState().syncLinesForMode("simulation");
 		expect(useMapStore.getState().activeLines.size).toBe(9);
 	});
