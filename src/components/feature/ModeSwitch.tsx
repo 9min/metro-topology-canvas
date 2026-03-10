@@ -45,7 +45,6 @@ export function ModeSwitch() {
 		// 노선 필터를 새 모드에 맞게 동기화
 		syncLinesForMode(newMode);
 		setMode(newMode);
-
 	};
 
 	return (

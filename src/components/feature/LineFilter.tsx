@@ -63,9 +63,7 @@ export function LineFilter() {
 			</div>
 
 			{/* 실시간 모드 안내 텍스트 */}
-			{isLive && (
-				<span className="text-xs text-white/50">실시간 모드: 호선을 선택하세요</span>
-			)}
+			{isLive && <span className="text-xs text-white/50">실시간 모드: 호선을 선택하세요</span>}
 		</div>
 	);
 }
