@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { TrainSimulator } from "@/services/trainSimulator";
 import { SIM_DWELL_TICKS } from "@/constants/mapConfig";
+import { TrainSimulator } from "@/services/trainSimulator";
 import type { ScreenCoord } from "@/types/map";
 import type { StationLink } from "@/types/station";
 
@@ -89,9 +89,7 @@ describe("TrainSimulator", () => {
 		// 충분한 틱을 돌려 정차 상태 열차를 찾는다
 		for (let i = 0; i < 30; i++) {
 			const trains = sim.tick(SCREEN_MAP);
-			const dwelling = trains.filter(
-				(t) => t.progress === 0 && stationXs.has(t.x),
-			);
+			const dwelling = trains.filter((t) => t.progress === 0 && stationXs.has(t.x));
 			if (dwelling.length > 0) {
 				foundDwelling = true;
 				break;
@@ -138,9 +136,7 @@ describe("TrainSimulator", () => {
 		for (let i = 0; i < 30; i++) {
 			const trains = sim.tick(SCREEN_MAP);
 			const stationXs = new Set([100, 200, 300, 400, 500]);
-			const dwelling = trains.filter(
-				(t) => stationXs.has(t.x) && t.progress === 0,
-			);
+			const dwelling = trains.filter((t) => stationXs.has(t.x) && t.progress === 0);
 			for (const t of dwelling) {
 				expect(t.progress).toBe(0);
 			}

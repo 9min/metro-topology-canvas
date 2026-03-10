@@ -64,9 +64,7 @@ export function HUD() {
 					<span className="ml-1 text-sm font-normal text-gray-400">대</span>
 				</p>
 				<p className="mt-1 text-xs text-gray-500">{formatElapsed(lastFetchedAt, now)} 업데이트</p>
-				{!isSimulation && (
-					<p className="mt-1 text-[10px] text-gray-600">서울교통공사 실시간 API</p>
-				)}
+				{!isSimulation && <p className="mt-1 text-[10px] text-gray-600">서울교통공사 실시간 API</p>}
 			</div>
 
 			{/* 에러 배너 */}

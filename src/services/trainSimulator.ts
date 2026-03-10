@@ -190,17 +190,12 @@ export class TrainSimulator {
 		if (train.progress >= 1) {
 			train.progress = 0; // 초과분 버림 — 역에서 정확히 0 시작
 			const isTerminal = this.moveToNextSegment(train, segmentCount);
-			train.dwellRemaining = isTerminal
-				? SIM_TERMINAL_DWELL_TICKS
-				: SIM_DWELL_TICKS;
+			train.dwellRemaining = isTerminal ? SIM_TERMINAL_DWELL_TICKS : SIM_DWELL_TICKS;
 		}
 	}
 
 	/** 다음 구간으로 이동 (종점 반전 또는 순환). 종점 방향 전환 시 true 반환 */
-	private moveToNextSegment(
-		train: SimTrain,
-		segmentCount: number,
-	): boolean {
+	private moveToNextSegment(train: SimTrain, segmentCount: number): boolean {
 		const isCircular = train.line === 2;
 
 		if (train.direction === "상행") {
