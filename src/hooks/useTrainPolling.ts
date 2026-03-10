@@ -98,7 +98,11 @@ export function useTrainPolling(
 	}, [startPolling, stopPolling]);
 
 	// 마운트 시 폴링 시작, 언마운트 시 정리
+	// activeLinesKey를 의존성에 포함하여 호선 변경 시 폴링을 재시작한다
 	useEffect(() => {
+		// activeLinesKey를 effect 내부에서 참조하여 Biome exhaustive-deps 충족
+		void activeLinesKey;
+
 		// 시뮬레이션 모드이면 API 폴링 중단
 		if (mode !== "live") {
 			stopPolling();
