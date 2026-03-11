@@ -35,7 +35,12 @@ function refreshConfig(): void {
 			return;
 		}
 		// 쉼표로 구분된 trainNo 목록
-		const targets = new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
+		const targets = new Set(
+			raw
+				.split(",")
+				.map((s) => s.trim())
+				.filter(Boolean),
+		);
 		cachedConfig = { enabled: targets.size > 0, targets };
 	} catch {
 		cachedConfig = { enabled: false, targets: null };
@@ -75,11 +80,7 @@ export function logPollResult(
 }
 
 /** 폴링 요약: raw 개수 vs resolved 개수 */
-export function logPollSummary(
-	source: string,
-	rawCount: number,
-	resolvedCount: number,
-): void {
+export function logPollSummary(source: string, rawCount: number, resolvedCount: number): void {
 	if (!isDebugEnabled()) return;
 	console.warn(
 		`${PREFIX} [POLL-SUMMARY] ${source}: raw=${rawCount} → resolved=${resolvedCount} (드롭=${rawCount - resolvedCount})`,
@@ -123,7 +124,9 @@ export function logPathBuild(
 		newFromStation !== undefined ? `newFrom=${newFromStation}` : "",
 		pathLength !== undefined ? `pathLen=${pathLength}` : "",
 		dot !== undefined ? `dot=${dot.toFixed(3)}` : "",
-	].filter(Boolean).join(" ");
+	]
+		.filter(Boolean)
+		.join(" ");
 	console.warn(`${PREFIX} [PATH] 열차=${trainNo} ${reason} ${extra}`);
 }
 
@@ -147,7 +150,9 @@ export function logAnimUpdate(
 		trackAngle !== undefined ? `trackAngle=${trackAngle.toFixed(3)}` : "",
 		moveAngle !== undefined ? `moveAngle=${moveAngle.toFixed(3)}` : "",
 		duration !== undefined ? `duration=${duration}ms` : "",
-	].filter(Boolean).join(" ");
+	]
+		.filter(Boolean)
+		.join(" ");
 	console.warn(`${PREFIX} [ANIM] 열차=${trainNo} ${event} ${extra}`);
 }
 

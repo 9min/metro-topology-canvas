@@ -5,12 +5,12 @@ import type { InterpolatedTrain, TrainPosition } from "@/types/train";
 import { interpolateTrainPosition } from "@/utils/trainInterpolation";
 import {
 	type Infra,
+	loadInfra,
 	type PollResult,
 	type PrevPollEntry,
-	type SmssTrainRaw,
-	loadInfra,
 	replayPolling,
 	resolveSmssTrains,
+	type SmssTrainRaw,
 } from "./helpers/replayFixture";
 
 const FIXTURE_3MIN = resolve(__dirname, "../fixtures/api-responses-3min.json");
@@ -190,10 +190,7 @@ describe("열차 깜빡임 진단", () => {
 				(sum, f) => sum + f.singlePollFlickers,
 				0,
 			);
-			const singleFlickersWith = flickersWith.reduce(
-				(sum, f) => sum + f.singlePollFlickers,
-				0,
-			);
+			const singleFlickersWith = flickersWith.reduce((sum, f) => sum + f.singlePollFlickers, 0);
 
 			console.log(
 				`1폴 깜빡임: grace 전 ${singleFlickersWithout}건 → grace 후 ${singleFlickersWith}건`,

@@ -22,7 +22,9 @@ export function DebugOverlay() {
 			<div className="text-yellow-400">DEBUG</div>
 			<div className={badgeClass(debugMode)}>[D] 열차번호: ON</div>
 			<div className={badgeClass(skipAnimation)}>[A] 즉시점프: {skipAnimation ? "ON" : "OFF"}</div>
-			<div className={badgeClass(showTargetMarkers)}>[T] 목표마커: {showTargetMarkers ? "ON" : "OFF"}</div>
+			<div className={badgeClass(showTargetMarkers)}>
+				[T] 목표마커: {showTargetMarkers ? "ON" : "OFF"}
+			</div>
 			<div className="text-gray-500">[S] 스냅샷 덤프</div>
 		</div>
 	);

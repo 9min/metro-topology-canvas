@@ -39,6 +39,7 @@ interface StuckAnomaly {
 	stationId: string;
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: 진단 로직 복잡도 허용
 function detectStuckTrains(results: PollResult[]): StuckAnomaly[] {
 	const anomalies: StuckAnomaly[] = [];
 	const stuckCounter = new Map<
@@ -122,6 +123,7 @@ interface SpeedSpikeAnomaly {
 	ratio: number;
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: 진단 로직 복잡도 허용
 function detectSpeedSpikes(results: PollResult[]): SpeedSpikeAnomaly[] {
 	const anomalies: SpeedSpikeAnomaly[] = [];
 	const prevMap = new Map<string, { x: number; y: number }>();
@@ -379,8 +381,12 @@ function runAnimatorDiagnostics(fixtureName: string, fixturePath: string): void 
 
 			console.log(`\n=== [${fixtureName}] TrainAnimator 파이프라인 통계 ===`);
 			console.log(`총 갱신: ${totalUpdates}`);
-			console.log(`정지(같은 좌표): ${stationaryCount} (${totalUpdates > 0 ? ((stationaryCount / totalUpdates) * 100).toFixed(1) : 0}%)`);
-			console.log(`이동(다른 좌표): ${movingCount} (${totalUpdates > 0 ? ((movingCount / totalUpdates) * 100).toFixed(1) : 0}%)`);
+			console.log(
+				`정지(같은 좌표): ${stationaryCount} (${totalUpdates > 0 ? ((stationaryCount / totalUpdates) * 100).toFixed(1) : 0}%)`,
+			);
+			console.log(
+				`이동(다른 좌표): ${movingCount} (${totalUpdates > 0 ? ((movingCount / totalUpdates) * 100).toFixed(1) : 0}%)`,
+			);
 
 			expect(totalUpdates).toBeGreaterThan(0);
 		});

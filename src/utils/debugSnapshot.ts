@@ -77,11 +77,7 @@ export function dumpDebugSnapshot(): void {
 	const animMap = new Map(animatedStates.map((t) => [t.trainNo, t]));
 
 	// 모든 trainNo 수집
-	const allTrainNos = new Set([
-		...rawMap.keys(),
-		...interpMap.keys(),
-		...animMap.keys(),
-	]);
+	const allTrainNos = new Set([...rawMap.keys(), ...interpMap.keys(), ...animMap.keys()]);
 
 	const snapshots: TrainSnapshot[] = [];
 
@@ -124,18 +120,14 @@ export function dumpDebugSnapshot(): void {
 						fromStationId: anim.fromStationId,
 						toStationId: anim.toStationId,
 						trackAngle:
-							anim.trackAngle !== undefined
-								? Math.round(anim.trackAngle * 1000) / 1000
-								: undefined,
+							anim.trackAngle !== undefined ? Math.round(anim.trackAngle * 1000) / 1000 : undefined,
 						direction: anim.direction,
 						duration: anim.duration,
 						pathLength: anim.path.length,
 						elapsed: Math.round(now - anim.startTime),
 					}
 				: null,
-			pollHistory: poll
-				? { missedCount: poll.missedCount }
-				: null,
+			pollHistory: poll ? { missedCount: poll.missedCount } : null,
 		});
 	}
 
@@ -186,7 +178,7 @@ export function dumpDebugSnapshot(): void {
 				const normalized = angleDiff > Math.PI ? Math.PI * 2 - angleDiff : angleDiff;
 				if (normalized > Math.PI * 0.7) {
 					summary.anomalies.push(
-						`${s.trainNo}: 이동방향↔trackAngle 역방향 (diff=${(normalized * 180 / Math.PI).toFixed(0)}°)`,
+						`${s.trainNo}: 이동방향↔trackAngle 역방향 (diff=${((normalized * 180) / Math.PI).toFixed(0)}°)`,
 					);
 				}
 			}
