@@ -119,5 +119,4 @@ const outputPath = join(__dirname, "../public/og-image.png");
 await page.screenshot({ path: outputPath, clip: { x: 0, y: 0, width: WIDTH, height: HEIGHT } });
 await browser.close();
 
-// biome-ignore lint/suspicious/noConsole: CLI 스크립트 출력
 console.log(`OG 이미지 생성 완료: ${outputPath}`);

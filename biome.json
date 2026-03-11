@@ -49,5 +49,15 @@
 	},
 	"files": {
 		"includes": ["**", "!**/node_modules", "!**/dist", "!**/build", "!**/coverage", "!**/*.min.js"]
-	}
+	},
+	"overrides": [
+		{
+			"includes": ["scripts/**"],
+			"linter": {
+				"rules": {
+					"suspicious": { "noConsole": "off" }
+				}
+			}
+		}
+	]
 }

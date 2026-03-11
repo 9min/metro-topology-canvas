@@ -249,6 +249,8 @@ export class TrainSimulator {
 			line: train.line,
 			x: lerp(fromCoord.x, toCoord.x, train.progress),
 			y: lerp(fromCoord.y, toCoord.y, train.progress),
+			stationX: fromCoord.x,
+			stationY: fromCoord.y,
 			direction: train.direction,
 			progress: train.progress,
 			fromStationId: fromId,

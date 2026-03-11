@@ -31,6 +31,10 @@ export interface InterpolatedTrain {
 	line: number;
 	x: number;
 	y: number;
+	/** 열차가 물리적으로 위치한 역의 화면 X 좌표 (출발 상태여도 현재역) */
+	stationX: number;
+	/** 열차가 물리적으로 위치한 역의 화면 Y 좌표 (출발 상태여도 현재역) */
+	stationY: number;
 	direction: "상행" | "하행";
 	progress: number;
 	fromStationId: string;

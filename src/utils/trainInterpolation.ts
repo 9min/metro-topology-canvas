@@ -75,6 +75,8 @@ export function interpolateTrainPosition(
 		line: train.line,
 		x: targetCoord.x,
 		y: targetCoord.y,
+		stationX: currentCoord.x,
+		stationY: currentCoord.y,
 		direction: train.direction,
 		progress: 0,
 		fromStationId: train.stationId,
