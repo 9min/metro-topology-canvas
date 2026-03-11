@@ -109,7 +109,7 @@ export function StationSearch({ transferMap, onSelect }: StationSearchProps) {
 				onChange={(e) => setSearchQuery(e.target.value)}
 				onKeyDown={handleKeyDown}
 				placeholder="역 이름 검색..."
-				className={`w-full ${OVERLAY_INPUT} px-3 py-2 text-sm text-white outline-none placeholder:text-gray-500 focus:border-blue-500/50`}
+				className={`w-full ${OVERLAY_INPUT} px-3 py-2 text-base text-white outline-none placeholder:text-gray-500 focus:border-blue-500/50 sm:text-sm`}
 			/>
 
 			{searchResults.length > 0 && (

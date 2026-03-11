@@ -38,9 +38,9 @@ export function HUD() {
 	}, []);
 
 	return (
-		// 모바일: top-[5.5rem] = MobileTopBar(top-2 ~36px) + LineFilter(top-12 ~40px) 아래
+		// 모바일: top-[6rem] = MobileTopBar(top-2 ~36px) + LineFilter(top-12 ~40px) + gap-2(8px)
 		// 데스크톱: top-4 (기존 위치)
-		<div className="pointer-events-none absolute top-[5.5rem] left-2 flex flex-col gap-2 sm:top-4 sm:left-4">
+		<div className="pointer-events-none absolute top-[6rem] left-2 flex flex-col gap-2 sm:top-4 sm:left-4">
 			{/* 모드 전환 — 모바일에서는 MobileTopBar가 담당하므로 숨김 */}
 			<div className="hidden sm:block">
 				<ModeSwitch />

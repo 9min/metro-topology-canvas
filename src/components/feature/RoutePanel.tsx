@@ -158,7 +158,7 @@ export function RoutePanel({ transferMap, onStationSelect }: RoutePanelProps) {
 					}}
 					onFocus={() => setActiveInput("from")}
 					placeholder="출발역 입력..."
-					className={`w-full ${OVERLAY_INPUT} px-3 py-1.5 text-xs text-white outline-none placeholder:text-gray-600 focus:border-green-500/50`}
+					className={`w-full ${OVERLAY_INPUT} px-3 py-1.5 text-base text-white outline-none placeholder:text-gray-600 focus:border-green-500/50 sm:text-xs`}
 				/>
 				{activeInput === "from" && (
 					<SearchDropdown
@@ -186,7 +186,7 @@ export function RoutePanel({ transferMap, onStationSelect }: RoutePanelProps) {
 					}}
 					onFocus={() => setActiveInput("to")}
 					placeholder="도착역 입력..."
-					className={`w-full ${OVERLAY_INPUT} px-3 py-1.5 text-xs text-white outline-none placeholder:text-gray-600 focus:border-red-500/50`}
+					className={`w-full ${OVERLAY_INPUT} px-3 py-1.5 text-base text-white outline-none placeholder:text-gray-600 focus:border-red-500/50 sm:text-xs`}
 				/>
 				{activeInput === "to" && (
 					<SearchDropdown

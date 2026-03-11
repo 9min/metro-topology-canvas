@@ -418,7 +418,7 @@ export function SearchRoutePanel({ transferMap, onStationSelect }: SearchRoutePa
 						onChange={(e) => setSearchQuery(e.target.value)}
 						onKeyDown={handleSearchKeyDown}
 						placeholder="역 이름 검색..."
-						className={`w-full ${OVERLAY_INPUT} px-3 py-2 text-sm text-white outline-none placeholder:text-gray-500 focus:border-blue-500/50`}
+						className={`w-full ${OVERLAY_INPUT} px-3 py-2 text-base text-white outline-none placeholder:text-gray-500 focus:border-blue-500/50 sm:text-sm`}
 					/>
 
 					{searchResults.length > 0 && (
@@ -486,7 +486,7 @@ export function SearchRoutePanel({ transferMap, onStationSelect }: SearchRoutePa
 							onFocus={() => setActiveInput("from")}
 							onKeyDown={(e) => handleRouteKeyDown(e, fromFiltered, handleFromSelect)}
 							placeholder="출발역 입력..."
-							className={`w-full ${OVERLAY_INPUT} px-3 py-1.5 text-xs text-white outline-none placeholder:text-gray-600 focus:border-green-500/50`}
+							className={`w-full ${OVERLAY_INPUT} px-3 py-1.5 text-base text-white outline-none placeholder:text-gray-600 focus:border-green-500/50 sm:text-xs`}
 						/>
 						{activeInput === "from" && (
 							<RouteDropdown
@@ -515,7 +515,7 @@ export function SearchRoutePanel({ transferMap, onStationSelect }: SearchRoutePa
 							onFocus={() => setActiveInput("to")}
 							onKeyDown={(e) => handleRouteKeyDown(e, toFiltered, handleToSelect)}
 							placeholder="도착역 입력..."
-							className={`w-full ${OVERLAY_INPUT} px-3 py-1.5 text-xs text-white outline-none placeholder:text-gray-600 focus:border-red-500/50`}
+							className={`w-full ${OVERLAY_INPUT} px-3 py-1.5 text-base text-white outline-none placeholder:text-gray-600 focus:border-red-500/50 sm:text-xs`}
 						/>
 						{activeInput === "to" && (
 							<RouteDropdown
