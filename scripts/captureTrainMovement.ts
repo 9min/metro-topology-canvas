@@ -3,10 +3,10 @@
  * 줌인한 상태에서 작은 영역만 클리핑하여 빠르게 캡처한다.
  */
 
-import { chromium } from "playwright";
 import { mkdirSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { chromium } from "playwright";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = resolve(__dirname, "../screenshots/train-movement");
