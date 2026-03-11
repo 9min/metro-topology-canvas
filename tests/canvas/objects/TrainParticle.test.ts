@@ -47,8 +47,21 @@ class MockGraphics {
 	}
 }
 
+class MockText {
+	text = "";
+	style: unknown = null;
+	anchor = { set: vi.fn() };
+	x = 0;
+	y = 0;
+	constructor(options?: { text?: string; style?: unknown }) {
+		if (options?.text !== undefined) this.text = options.text;
+		if (options?.style !== undefined) this.style = options.style;
+	}
+}
+
 vi.mock("pixi.js", () => ({
 	Graphics: MockGraphics,
+	Text: MockText,
 }));
 
 // LINE_COLORS 모킹 — 1호선 색상 제공

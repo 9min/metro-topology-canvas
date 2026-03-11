@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { SIMULATION_TICK_MS } from "@/constants/mapConfig";
+import { MODE_LOADING_MS, SIMULATION_TICK_MS } from "@/constants/mapConfig";
 import { TrainSimulator } from "@/services/trainSimulator";
 import { useSimulationStore } from "@/stores/useSimulationStore";
 import { useTrainStore } from "@/stores/useTrainStore";
@@ -17,8 +17,10 @@ export function useSimulationPolling(
 ): void {
 	const mode = useSimulationStore((s) => s.mode);
 	const setPollingActive = useTrainStore((s) => s.setPollingActive);
+	const setInitializing = useTrainStore((s) => s.setInitializing);
 	const simulatorRef = useRef<TrainSimulator | null>(null);
 	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+	const initTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const doTick = useCallback(() => {
 		const sim = simulatorRef.current;
@@ -37,7 +39,12 @@ export function useSimulationPolling(
 				clearInterval(intervalRef.current);
 				intervalRef.current = null;
 			}
+			if (initTimerRef.current !== null) {
+				clearTimeout(initTimerRef.current);
+				initTimerRef.current = null;
+			}
 			simulatorRef.current = null;
+			// live 모드가 자신의 isInitializing을 직접 관리하므로 여기서 덮어쓰지 않는다
 			return;
 		}
 
@@ -47,6 +54,13 @@ export function useSimulationPolling(
 		const sim = new TrainSimulator();
 		sim.init(links);
 		simulatorRef.current = sim;
+
+		// 초기 로딩 오버레이 표시
+		setInitializing(true);
+		initTimerRef.current = setTimeout(() => {
+			setInitializing(false);
+			initTimerRef.current = null;
+		}, MODE_LOADING_MS);
 
 		// 즉시 첫 틱 실행 + 주기적 반복
 		setPollingActive(true);
@@ -64,7 +78,12 @@ export function useSimulationPolling(
 				clearInterval(intervalRef.current);
 				intervalRef.current = null;
 			}
+			if (initTimerRef.current !== null) {
+				clearTimeout(initTimerRef.current);
+				initTimerRef.current = null;
+			}
 			simulatorRef.current = null;
+			setInitializing(false);
 		};
-	}, [mode, links, stationScreenMap, doTick, setPollingActive]);
+	}, [mode, links, stationScreenMap, doTick, setPollingActive, setInitializing]);
 }

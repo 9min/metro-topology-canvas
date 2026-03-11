@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef } from "react";
-import { API_POLLING_INTERVAL_MS, SMSS_POLLING_INTERVAL_MS } from "@/constants/mapConfig";
+import {
+	API_POLLING_INTERVAL_MS,
+	MODE_LOADING_MS,
+	SMSS_POLLING_INTERVAL_MS,
+} from "@/constants/mapConfig";
 import { fetchAllTrains, fetchTrainsFromSmss } from "@/services/trainApi";
 import { useMapStore } from "@/stores/useMapStore";
 import { useSimulationStore } from "@/stores/useSimulationStore";
@@ -44,23 +48,33 @@ export function useTrainPolling(
 	const updatePositions = useTrainStore((s) => s.updatePositions);
 	const setFetchError = useTrainStore((s) => s.setFetchError);
 	const setPollingActive = useTrainStore((s) => s.setPollingActive);
+	const setInitializing = useTrainStore((s) => s.setInitializing);
 
 	const nameMapRef = useRef<Map<string, string>>(new Map());
+	const initTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// 각 소스의 최신 데이터를 보관하여 합산에 사용한다
 	const latestSmssRef = useRef<TrainPosition[]>([]);
 	const latestApiRef = useRef<TrainPosition[]>([]);
 
 	const activeLinesKey = Array.from(activeLines).sort().join(",");
+	const prevActiveLinesKeyRef = useRef(activeLinesKey);
+	const mergeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	useEffect(() => {
 		nameMapRef.current = buildStationNameMap(stations);
 	}, [stations]);
 
-	/** 두 소스의 최신 데이터를 합쳐 스토어에 반영한다 */
+	/** 두 소스의 최신 데이터를 합쳐 스토어에 반영한다 (50ms 디바운스) */
 	const mergeAndUpdate = useCallback(() => {
-		const merged = [...latestSmssRef.current, ...latestApiRef.current];
-		updatePositions(merged, stationScreenMap, adjacencyMap);
+		if (mergeTimerRef.current !== null) {
+			clearTimeout(mergeTimerRef.current);
+		}
+		mergeTimerRef.current = setTimeout(() => {
+			mergeTimerRef.current = null;
+			const merged = [...latestSmssRef.current, ...latestApiRef.current];
+			updatePositions(merged, stationScreenMap, adjacencyMap);
+		}, 50);
 	}, [updatePositions, stationScreenMap, adjacencyMap]);
 
 	/** SMSS 폴링 (1~8호선) */
@@ -74,7 +88,8 @@ export function useTrainPolling(
 
 		try {
 			const raw = await fetchTrainsFromSmss(lines);
-			latestSmssRef.current = resolveTrains(raw, nameMapRef.current);
+			const resolved = resolveTrains(raw, nameMapRef.current);
+			latestSmssRef.current = resolved;
 			mergeAndUpdate();
 		} catch {
 			setFetchError("SMSS 열차 위치 데이터를 가져오는데 실패했습니다");
@@ -92,7 +107,8 @@ export function useTrainPolling(
 
 		try {
 			const raw = await fetchAllTrains(lines);
-			latestApiRef.current = resolveTrains(raw, nameMapRef.current);
+			const resolved = resolveTrains(raw, nameMapRef.current);
+			latestApiRef.current = resolved;
 			mergeAndUpdate();
 		} catch {
 			setFetchError("9호선 열차 위치 데이터를 가져오는데 실패했습니다");
@@ -123,6 +139,37 @@ export function useTrainPolling(
 		setPollingActive(false);
 	}, [setPollingActive]);
 
+	/**
+	 * 모드 진입 시에만 로딩 오버레이를 표시한다.
+	 * deps가 mode뿐이므로 호선 토글에는 반응하지 않는다.
+	 * React Strict Mode에서도 cleanup → re-mount 시 올바르게 재실행된다.
+	 */
+	useEffect(() => {
+		if (mode !== "live") {
+			// live → simulation 전환 시 진행 중인 타이머와 오버레이를 즉시 해제
+			if (initTimerRef.current !== null) {
+				clearTimeout(initTimerRef.current);
+				initTimerRef.current = null;
+				setInitializing(false);
+			}
+			return;
+		}
+
+		setInitializing(true);
+		initTimerRef.current = setTimeout(() => {
+			setInitializing(false);
+			initTimerRef.current = null;
+		}, MODE_LOADING_MS);
+
+		return () => {
+			// 타이머만 취소 — setInitializing은 다음 effect 실행(또는 timeout 콜백)에서 처리
+			if (initTimerRef.current !== null) {
+				clearTimeout(initTimerRef.current);
+				initTimerRef.current = null;
+			}
+		};
+	}, [mode, setInitializing]);
+
 	useEffect(() => {
 		void activeLinesKey;
 
@@ -133,10 +180,13 @@ export function useTrainPolling(
 
 		if (stationScreenMap.size === 0) return;
 
-		// 호선 변경 시 이전 데이터 클리어
-		latestSmssRef.current = [];
-		latestApiRef.current = [];
-		useTrainStore.getState().clearPositions();
+		// 호선 필터가 실제로 변경된 경우에만 클리어
+		if (prevActiveLinesKeyRef.current !== activeLinesKey) {
+			prevActiveLinesKeyRef.current = activeLinesKey;
+			latestSmssRef.current = [];
+			latestApiRef.current = [];
+			useTrainStore.getState().clearPositions();
+		}
 
 		startPolling();
 
@@ -152,6 +202,10 @@ export function useTrainPolling(
 
 		return () => {
 			stopPolling();
+			if (mergeTimerRef.current !== null) {
+				clearTimeout(mergeTimerRef.current);
+				mergeTimerRef.current = null;
+			}
 			document.removeEventListener("visibilitychange", handleVisibility);
 		};
 	}, [mode, activeLinesKey, startPolling, stopPolling, stationScreenMap]);

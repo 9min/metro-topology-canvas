@@ -19,6 +19,7 @@ export interface PixiScene {
 	routeLayer: Container;
 	trainsLayer: Container;
 	labelsLayer: Container;
+	trainLabelsLayer: Container;
 	destroy: () => void;
 }
 
@@ -68,8 +69,9 @@ export async function createPixiApp(canvas: HTMLCanvasElement): Promise<PixiScen
 	const trainsLayer = new Container();
 	trainsLayer.eventMode = "static";
 	const labelsLayer = new Container();
+	const trainLabelsLayer = new Container();
 
-	// z-order: links → heatmap → trail → stations → route → trains → labels
+	// z-order: links → heatmap → trail → stations → route → trains → labels → trainLabels
 	viewport.addChild(linksLayer);
 	viewport.addChild(heatmapLayer);
 	viewport.addChild(trailLayer);
@@ -77,6 +79,7 @@ export async function createPixiApp(canvas: HTMLCanvasElement): Promise<PixiScen
 	viewport.addChild(routeLayer);
 	viewport.addChild(trainsLayer);
 	viewport.addChild(labelsLayer);
+	viewport.addChild(trainLabelsLayer);
 
 	const destroy = (): void => {
 		app.destroy(false, { children: true });
@@ -93,6 +96,7 @@ export async function createPixiApp(canvas: HTMLCanvasElement): Promise<PixiScen
 		routeLayer,
 		trainsLayer,
 		labelsLayer,
+		trainLabelsLayer,
 		destroy,
 	};
 }

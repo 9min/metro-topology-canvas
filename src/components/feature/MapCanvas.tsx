@@ -43,6 +43,7 @@ import { easeInOutCubic } from "@/utils/easing";
 import { buildStationGraph } from "@/utils/pathFinder";
 import { buildAdjacencyMap } from "@/utils/stationNameResolver";
 import { buildTransferMap } from "@/utils/transferStation";
+import { LoadingOverlay } from "./LoadingOverlay";
 
 const STATIONS = stationsData as Station[];
 const LINKS = linksData as StationLink[];
@@ -169,13 +170,14 @@ export function MapCanvas() {
 		// TrainAnimator 초기화 및 ticker 등록
 		const animator = new TrainAnimator();
 		animator.setLayer(scene.trainsLayer);
+		animator.setTrainLabelsLayer(scene.trainLabelsLayer);
 		animator.setOnTrainTap(handleTrainTap);
 		animatorRef.current = animator;
 
 		// scene 재생성 시 스토어의 기존 열차 데이터로 즉시 복원
 		const existingTrains = useTrainStore.getState().interpolatedTrains;
 		if (existingTrains.length > 0) {
-			animator.setTargets(existingTrains, undefined, false, stationScreenMap, stationGraph);
+			animator.setTargets(existingTrains);
 		}
 
 		// 모션 트레일용 Graphics (단일 인스턴스 재사용)
@@ -268,15 +270,8 @@ export function MapCanvas() {
 	useEffect(() => {
 		if (animatorRef.current === null) return;
 		const duration = mode === "simulation" ? SIMULATION_TICK_MS : undefined;
-		const linear = true;
-		animatorRef.current.setTargets(
-			interpolatedTrains,
-			duration,
-			linear,
-			stationScreenMap,
-			stationGraph,
-		);
-	}, [interpolatedTrains, mode, stationScreenMap, stationGraph]);
+		animatorRef.current.setTargets(interpolatedTrains, duration, adjacencyMap);
+	}, [interpolatedTrains, mode]);
 
 	// 역 선택 또는 노선 필터 변경 시 linksLayer 딤 + 노선 alpha + stationAlpha 업데이트
 	useEffect(() => {
@@ -287,7 +282,13 @@ export function MapCanvas() {
 		scene.stationsLayer.alpha = hasRoute ? 0.15 : 1.0;
 		updateLinksAlpha(scene.linksLayer, activeLines);
 		if (!hasRoute) {
-			updateStationAlpha(scene.stationsLayer, STATIONS, selectedStation?.id ?? null, activeLines);
+			updateStationAlpha(
+				scene.stationsLayer,
+				STATIONS,
+				selectedStation?.id ?? null,
+				activeLines,
+				transferMap,
+			);
 		}
 	}, [scene, selectedStation, activeLines, route]);
 
@@ -318,5 +319,10 @@ export function MapCanvas() {
 		flyToStation(scene.viewport, coord.x, coord.y);
 	}, [scene, selectedStation, stationScreenMap]);
 
-	return <div ref={containerRef} className="h-full w-full" />;
+	return (
+		<>
+			<div ref={containerRef} className="h-full w-full" />
+			<LoadingOverlay />
+		</>
+	);
 }

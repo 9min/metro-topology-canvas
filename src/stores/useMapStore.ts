@@ -20,6 +20,7 @@ interface MapState {
 	isDragging: boolean;
 	activeLines: Set<number>;
 	heatmapEnabled: boolean;
+	trainLabelsEnabled: boolean;
 	setScale: (scale: number) => void;
 	setOffset: (x: number, y: number) => void;
 	setIsDragging: (isDragging: boolean) => void;
@@ -29,6 +30,7 @@ interface MapState {
 	syncLinesForMode: (mode: AppMode) => void;
 	removeInactiveLines: (linesWithTrains: Set<number>) => void;
 	toggleHeatmap: () => void;
+	toggleTrainLabels: () => void;
 }
 
 export const useMapStore = create<MapState>((set) => ({
@@ -38,6 +40,7 @@ export const useMapStore = create<MapState>((set) => ({
 	isDragging: false,
 	activeLines: isOperatingHours() ? new Set(LIVE_DEFAULT_LINES) : new Set(ALL_LINES),
 	heatmapEnabled: false,
+	trainLabelsEnabled: false,
 	setScale: (scale) => set({ scale }),
 	setOffset: (offsetX, offsetY) => set({ offsetX, offsetY }),
 	setIsDragging: (isDragging) => set({ isDragging }),
@@ -67,4 +70,5 @@ export const useMapStore = create<MapState>((set) => ({
 			return { activeLines: next };
 		}),
 	toggleHeatmap: () => set((state) => ({ heatmapEnabled: !state.heatmapEnabled })),
+	toggleTrainLabels: () => set((state) => ({ trainLabelsEnabled: !state.trainLabelsEnabled })),
 }));

@@ -118,6 +118,7 @@ export class TrainSimulator {
 	init(links: StationLink[]): void {
 		this.routes = buildRoutes(links);
 		this.trains = [];
+		let trainSeq = 1;
 
 		for (const [line, route] of this.routes) {
 			if (route.length < 2) continue;
@@ -129,7 +130,7 @@ export class TrainSimulator {
 			for (let i = 0; i < halfCount; i++) {
 				const totalProgress = (i / halfCount) * segmentCount;
 				this.trains.push({
-					trainNo: `SIM-L${line}-U${i}`,
+					trainNo: `gm-${String(trainSeq++).padStart(3, "0")}`,
 					line,
 					direction: "상행",
 					segmentIdx: Math.floor(totalProgress) % segmentCount,
@@ -144,7 +145,7 @@ export class TrainSimulator {
 			for (let i = 0; i < downCount; i++) {
 				const totalProgress = ((i + 0.5) / downCount) * segmentCount;
 				this.trains.push({
-					trainNo: `SIM-L${line}-D${i}`,
+					trainNo: `gm-${String(trainSeq++).padStart(3, "0")}`,
 					line,
 					direction: "하행",
 					segmentIdx: Math.floor(totalProgress) % segmentCount,

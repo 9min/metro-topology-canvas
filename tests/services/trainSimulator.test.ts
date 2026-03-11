@@ -31,12 +31,12 @@ describe("TrainSimulator", () => {
 		}
 	});
 
-	it("trainNo가 SIM- 접두사를 가진다", () => {
+	it("trainNo가 gm-{3자리번호} 형식이다", () => {
 		const sim = new TrainSimulator();
 		sim.init(LINKS);
 		const trains = sim.tick(SCREEN_MAP);
 		for (const t of trains) {
-			expect(t.trainNo.startsWith("SIM-")).toBe(true);
+			expect(t.trainNo).toMatch(/^gm-\d{3}$/);
 		}
 	});
 
