@@ -241,8 +241,8 @@ describe("TrainAnimator", () => {
 		expect(state?.targetY).toBe(200);
 	});
 
-	it("역이 변경되면 startX/Y가 stationX/Y로 재설정된다", () => {
-		// S01에 열차 배치 후 S02로 역 변경
+	it("실시간 모드에서 역 변경(비인접) 시 startX/Y가 stationX/Y로 재설정된다", () => {
+		// S01에 열차 배치 후 S02로 역 변경 (adjacencyMap 없음 → 비인접 처리)
 		animator.setTargets([MOCK_TRAIN]); // currentX=100, currentY=200
 
 		const changedStationTrain: InterpolatedTrain = {
@@ -254,12 +254,37 @@ describe("TrainAnimator", () => {
 			fromStationId: "S02",
 			toStationId: "S03",
 		};
+		// duration 미전달 → 실시간 모드 (continuousMode=false)
+		animator.setTargets([changedStationTrain]);
+
+		const state = animator.getTrainState("1001");
+		// 실시간 모드 + adjacencyMap 없음 → 비인접 처리 → startX/Y = stationX/Y
+		expect(state?.startX).toBe(200);
+		expect(state?.startY).toBe(300);
+		expect(state?.targetX).toBe(300);
+		expect(state?.targetY).toBe(400);
+	});
+
+	it("시뮬레이션 모드(continuousMode)에서 역 변경 시 startX/Y가 currentX/Y로 유지된다", () => {
+		// S01에 열차 배치
+		animator.setTargets([MOCK_TRAIN]); // currentX=100, currentY=200
+
+		const changedStationTrain: InterpolatedTrain = {
+			...MOCK_TRAIN,
+			x: 300,
+			y: 400,
+			stationX: 200,
+			stationY: 300,
+			fromStationId: "S02",
+			toStationId: "S03",
+		};
+		// duration 전달 → 시뮬레이션 모드 (continuousMode=true)
 		animator.setTargets([changedStationTrain], 9000);
 
 		const state = animator.getTrainState("1001");
-		// fromStationId 변경(S01→S02) → startX/Y = stationX/Y (currentX/Y 아님)
-		expect(state?.startX).toBe(200);
-		expect(state?.startY).toBe(300);
+		// 시뮬레이션 모드 → stationX/Y 리셋 금지 → currentX/Y 유지 (순간이동 방지)
+		expect(state?.startX).toBe(100);
+		expect(state?.startY).toBe(200);
 		expect(state?.targetX).toBe(300);
 		expect(state?.targetY).toBe(400);
 	});

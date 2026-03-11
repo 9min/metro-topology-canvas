@@ -6,10 +6,8 @@
 
 ```json
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
-  "organizeImports": {
-    "enabled": true
-  },
+  "$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "formatter": {
     "enabled": true,
     "indentStyle": "tab",
@@ -39,9 +37,14 @@
       },
       "suspicious": {
         "noExplicitAny": "error",
-        "noConsoleLog": "warn"
+        "noConsole": { "level": "warn", "options": { "allow": ["warn", "error"] } }
       }
     }
+  },
+  "css": {
+    "parser": { "cssModules": false, "tailwindDirectives": true },
+    "linter": { "enabled": true },
+    "formatter": { "enabled": true }
   },
   "javascript": {
     "formatter": {
@@ -52,15 +55,18 @@
     }
   },
   "files": {
-    "ignore": [
-      "node_modules",
-      "dist",
-      "build",
-      ".next",
-      "coverage",
-      "*.min.js"
-    ]
-  }
+    "includes": ["**", "!**/node_modules", "!**/dist", "!**/build", "!**/coverage", "!**/*.min.js"]
+  },
+  "overrides": [
+    {
+      "includes": ["scripts/**"],
+      "linter": {
+        "rules": {
+          "suspicious": { "noConsole": "off" }
+        }
+      }
+    }
+  ]
 }
 ```
 
@@ -80,10 +86,16 @@
 
 | 규칙 | 설명 |
 |------|------|
-| `noConsoleLog` | `console.log` 사용 경고 |
+| `noConsole` | `console.log` 등 사용 경고 (`warn`, `error`만 허용) |
 | `noNonNullAssertion` | `!` non-null 단언 경고 |
 | `useExhaustiveDependencies` | 훅 의존성 배열 누락 경고 |
 | `noExcessiveCognitiveComplexity` | 과도한 복잡도 경고 |
+
+### 폴더별 override
+
+| 폴더 | 규칙 변경 | 이유 |
+|------|----------|------|
+| `scripts/**` | `noConsole: off` | 데이터 수집 스크립트에서 console 출력 허용 |
 
 ## import 정렬 규칙
 

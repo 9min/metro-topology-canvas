@@ -1,6 +1,92 @@
 # 데이터 모델링 가이드
 
-> 이 프로젝트는 백엔드 DB 없이 공공 API + 정적 JSON 데이터만 사용한다. 아래 내용은 Supabase/PostgreSQL 기반 프로젝트를 위한 참고 가이드이다. 이 프로젝트에 적용되는 실제 데이터 구조는 `src/types/`, `src/data/` 디렉토리를 참조한다.
+> 이 프로젝트는 백엔드 DB 없이 공공 API + 정적 JSON 데이터만 사용한다. 아래 섹션에서 실제 적용되는 타입 모델을 설명한다. 이후의 Supabase/PostgreSQL 내용은 범용 참고 가이드이며 이 프로젝트에는 적용되지 않는다.
+
+---
+
+## 프로젝트 실제 타입 모델
+
+### 공공 API 원시 응답
+
+```ts
+// src/types/train.ts
+
+/** 서울열린데이터광장 실시간 열차 위치 API 원시 응답 항목 */
+export interface SeoulApiTrainRaw {
+  subwayId: string;
+  subwayNm: string;
+  statnNm: string;
+  trainNo: string;
+  updnLine: string;
+  trainSttus: string;
+  directAt: string;
+  lstcarAt: string;
+}
+
+/** 서울열린데이터광장 API 응답 래퍼 */
+export interface SeoulApiResponse {
+  realtimePositionList: SeoulApiTrainRaw[];
+}
+```
+
+### 파싱된 열차 위치 (`TrainPosition`)
+
+```ts
+/** 파싱된 열차 위치 정보 */
+export interface TrainPosition {
+  trainNo: string;
+  stationId: string;
+  stationName: string;
+  line: number;
+  direction: "상행" | "하행";
+  status: "진입" | "도착" | "출발";
+}
+```
+
+### 보간된 열차 렌더링 좌표 (`InterpolatedTrain`)
+
+클라이언트 보간 알고리즘을 거쳐 60fps 렌더링에 사용되는 좌표 정보이다.
+
+```ts
+/** 보간된 열차 렌더링 좌표 */
+export interface InterpolatedTrain {
+  trainNo: string;
+  line: number;
+  /** 보간된 현재 화면 X 좌표 */
+  x: number;
+  /** 보간된 현재 화면 Y 좌표 */
+  y: number;
+  /** 열차가 물리적으로 위치한 역의 화면 X 좌표 (출발 상태여도 현재역) */
+  stationX: number;
+  /** 열차가 물리적으로 위치한 역의 화면 Y 좌표 (출발 상태여도 현재역) */
+  stationY: number;
+  direction: "상행" | "하행";
+  /** 0~1 사이 구간 진행도 */
+  progress: number;
+  fromStationId: string;
+  toStationId: string;
+  /** 트랙 방향 각도 (라디안) */
+  trackAngle: number;
+}
+```
+
+> `stationX` / `stationY` 필드는 열차가 "출발" 상태일 때도 현재역 좌표를 유지하여, 역 진입 시 트레일 기준점으로 활용된다.
+
+### 정적 데이터 (JSON)
+
+```ts
+// src/data/stations.json — Node-Link 그래프의 Nodes
+[
+  { "id": "0150", "name": "서울역", "line": 1, "x": 126.9726, "y": 37.5547 },
+  // ...
+]
+
+// src/data/links.json — Node-Link 그래프의 Links
+[
+  { "source": "0150", "target": "0151", "line": 1 },
+  // ...
+]
+```
 
 ---
 

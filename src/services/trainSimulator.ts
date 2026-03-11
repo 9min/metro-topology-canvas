@@ -191,7 +191,9 @@ export class TrainSimulator {
 		if (train.progress >= 1) {
 			train.progress = 0; // 초과분 버림 — 역에서 정확히 0 시작
 			const isTerminal = this.moveToNextSegment(train, segmentCount);
-			train.dwellRemaining = isTerminal ? SIM_TERMINAL_DWELL_TICKS : SIM_DWELL_TICKS;
+			const baseDwell = isTerminal ? SIM_TERMINAL_DWELL_TICKS : SIM_DWELL_TICKS;
+			// ±1틱 랜덤 편차로 열차 간 동기화 방지
+			train.dwellRemaining = Math.max(0, baseDwell + Math.floor(Math.random() * 3) - 1);
 		}
 	}
 
