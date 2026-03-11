@@ -20,8 +20,8 @@ export function resolveStationId(
 }
 
 export interface AdjacencyInfo {
-	prev: string | null;
-	next: string | null;
+	prevs: string[];
+	nexts: string[];
 }
 
 /**
@@ -35,7 +35,7 @@ export function buildAdjacencyMap(links: StationLink[]): Map<string, AdjacencyIn
 	const getOrCreate = (id: string): AdjacencyInfo => {
 		const existing = adjacencyMap.get(id);
 		if (existing !== undefined) return existing;
-		const info: AdjacencyInfo = { prev: null, next: null };
+		const info: AdjacencyInfo = { prevs: [], nexts: [] };
 		adjacencyMap.set(id, info);
 		return info;
 	};
@@ -44,12 +44,12 @@ export function buildAdjacencyMap(links: StationLink[]): Map<string, AdjacencyIn
 		const sourceInfo = getOrCreate(link.source);
 		const targetInfo = getOrCreate(link.target);
 
-		// source → target: source의 next = target, target의 prev = source
-		if (sourceInfo.next === null) {
-			sourceInfo.next = link.target;
+		// source → target: source의 nexts에 target 추가, target의 prevs에 source 추가
+		if (!sourceInfo.nexts.includes(link.target)) {
+			sourceInfo.nexts.push(link.target);
 		}
-		if (targetInfo.prev === null) {
-			targetInfo.prev = link.source;
+		if (!targetInfo.prevs.includes(link.source)) {
+			targetInfo.prevs.push(link.source);
 		}
 	}
 

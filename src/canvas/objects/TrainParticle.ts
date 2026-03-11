@@ -1,6 +1,12 @@
-import { type Container, Graphics } from "pixi.js";
+import { type Container, Graphics, Text } from "pixi.js";
 import { LINE_COLORS } from "@/constants/lineColors";
-import { TRAIN_CAPSULE_LENGTH, TRAIN_CAPSULE_WIDTH } from "@/constants/mapConfig";
+import {
+	TRAIN_CAPSULE_LENGTH,
+	TRAIN_CAPSULE_WIDTH,
+	TRAIN_FADEIN_MS,
+	TRAIN_FADEOUT_MS,
+} from "@/constants/mapConfig";
+import { useMapStore } from "@/stores/useMapStore";
 import type { AnimatedTrainState } from "@/types/train";
 
 /** 호선 색상 문자열을 16진수 숫자로 변환한다 */
@@ -42,21 +48,13 @@ export function createTrainGraphics(line: number): Graphics | null {
 	const headlight = new Graphics();
 	headlight.label = "headlight";
 
-	// 헤드라이트 빔 (전방으로 퍼지는 빛)
+	// 헤드라이트 빔 (전방으로 퍼지는 빛) — 매우 은은하게
 	headlight
 		.moveTo(L, 0)
-		.lineTo(L + L * 0.8, -W * 0.7)
-		.lineTo(L + L * 0.8, W * 0.7)
+		.lineTo(L + L * 0.5, -W * 0.4)
+		.lineTo(L + L * 0.5, W * 0.4)
 		.closePath()
-		.fill({ color: 0xffffff, alpha: 0.25 });
-
-	// 헤드라이트 빔 내부 (더 밝은 중심부)
-	headlight
-		.moveTo(L, 0)
-		.lineTo(L + L * 0.5, -W * 0.35)
-		.lineTo(L + L * 0.5, W * 0.35)
-		.closePath()
-		.fill({ color: 0xffffff, alpha: 0.4 });
+		.fill({ color: 0xffffff, alpha: 0.1 });
 
 	// 헤드라이트 점 (전방에 배치)
 	headlight.circle(L * 0.5, 0, W * 0.35).fill({
@@ -65,6 +63,12 @@ export function createTrainGraphics(line: number): Graphics | null {
 	});
 
 	gfx.addChild(headlight);
+
+	// 이동 방향 화살표 (흐르는 애니메이션 대상)
+	const movingArrows = new Graphics();
+	movingArrows.label = "movingArrows";
+	movingArrows.visible = false;
+	gfx.addChild(movingArrows);
 
 	// 선택 외곽선 (깜빡임 애니메이션 대상)
 	const selectionRing = new Graphics();
@@ -162,6 +166,49 @@ function updateHeadlightPulse(gfx: Graphics): void {
 	hl.alpha = HEADLIGHT_PULSE_MIN + norm * (HEADLIGHT_PULSE_MAX - HEADLIGHT_PULSE_MIN);
 }
 
+/** 이동 방향 화살표 1사이클 주기 (ms) */
+const ARROW_PERIOD_MS = 700;
+
+/** 동시 표시 화살표 수 */
+const NUM_ARROWS = 2;
+
+/** 이동 중 흐르는 화살표 애니메이션을 갱신한다 */
+function updateMovingArrows(gfx: Graphics, train: AnimatedTrainState, now: number): void {
+	const arrowGfx = gfx.getChildByLabel("movingArrows");
+	if (arrowGfx === null || !(arrowGfx instanceof Graphics)) return;
+
+	const isMoving = train.duration > 0 && now - train.startTime < train.duration;
+	const isFadingOut = train.fadeOutStartedAt !== undefined;
+
+	if (!isMoving || isFadingOut) {
+		arrowGfx.visible = false;
+		arrowGfx.clear();
+		return;
+	}
+
+	const L = TRAIN_CAPSULE_LENGTH;
+	const W = TRAIN_CAPSULE_WIDTH;
+	const offset = (now % ARROW_PERIOD_MS) / ARROW_PERIOD_MS; // 0~1
+
+	arrowGfx.clear();
+	arrowGfx.visible = true;
+
+	for (let i = 0; i < NUM_ARROWS; i++) {
+		const phase = i / NUM_ARROWS;
+		const t = (offset + phase) % 1; // 0→1: 뒤에서 앞으로
+		const x = -L * 0.7 + t * L * 1.4; // -L*0.7 → L*0.7
+		const alpha = Math.min(t, 1 - t) * 2 * 0.35; // 등장/소멸 페이드 (최대 0.35로 제한)
+		const backX = x - W * 0.5; // > 의 뒷점
+		const tipX = x + W * 0.3; // > 의 앞점(뾰족한 쪽, 전방)
+
+		arrowGfx
+			.moveTo(backX, -W * 0.65)
+			.lineTo(tipX, 0)
+			.lineTo(backX, W * 0.65)
+			.stroke({ width: 0.8, color: 0xffffff, alpha });
+	}
+}
+
 /** 선택 외곽선 깜빡임을 갱신한다 */
 function updateSelectionRing(
 	gfx: Graphics,
@@ -189,6 +236,72 @@ function updateSelectionRing(
  * 역/열차 선택 및 노선 필터에 따라 alpha를 조정한다.
  * 이동 방향에 따라 캡슐을 회전시킨다.
  */
+/** 열차 번호 텍스트 스타일 */
+const TRAIN_LABEL_STYLE = {
+	fill: 0xcccccc,
+	fontSize: 12,
+	fontFamily: "sans-serif",
+	dropShadow: {
+		color: 0x000000,
+		blur: 3,
+		distance: 0,
+		alpha: 0.8,
+	},
+};
+
+/** 열차 번호 텍스트 풀: trainNo → Text (한 번 생성 후 위치만 갱신) */
+const trainLabelPool = new Map<string, Text>();
+
+/** 열차 번호 레이블의 줌 기준 스케일 — 이 배율 이상에서 원본 크기 */
+const TRAIN_LABEL_BASE_SCALE = 1.2;
+
+/** 열차 번호 텍스트를 렌더링한다 */
+function renderTrainLabels(labelsLayer: Container, animatedTrains: AnimatedTrainState[]): void {
+	const { scale: viewportScale, trainLabelsEnabled } = useMapStore.getState();
+
+	// 비활성 시 풀과 레이어를 비우고 종료
+	if (!trainLabelsEnabled) {
+		if (trainLabelPool.size > 0) {
+			labelsLayer.removeChildren();
+			trainLabelPool.clear();
+		}
+		return;
+	}
+
+	// 줌아웃 시 레이블 축소, TRAIN_LABEL_BASE_SCALE 이상이면 원본 크기 유지
+	const scaleFactor = Math.min(viewportScale / TRAIN_LABEL_BASE_SCALE, 1);
+	const invScale = scaleFactor / viewportScale;
+
+	// 현재 프레임에 존재하는 열차 번호 집합
+	const activeTrainNos = new Set<string>();
+
+	for (const train of animatedTrains) {
+		activeTrainNos.add(train.trainNo);
+
+		// 열차 번호 텍스트: 풀에서 재사용하거나 새로 생성
+		let label = trainLabelPool.get(train.trainNo);
+		if (label === undefined) {
+			label = new Text({ text: train.trainNo, style: TRAIN_LABEL_STYLE });
+			label.anchor.set(0.5, 1);
+			trainLabelPool.set(train.trainNo, label);
+			labelsLayer.addChild(label);
+		}
+		label.scale.set(invScale);
+		label.x = train.currentX;
+		label.y = train.currentY - 5 * invScale;
+		label.visible = true;
+	}
+
+	// 사라진 열차의 텍스트를 풀에서 제거
+	for (const [trainNo, label] of trainLabelPool) {
+		if (!activeTrainNos.has(trainNo)) {
+			labelsLayer.removeChild(label);
+			label.destroy();
+			trainLabelPool.delete(trainNo);
+		}
+	}
+}
+
 export function drawAnimatedTrains(
 	trainsLayer: Container,
 	animatedTrains: AnimatedTrainState[],
@@ -197,7 +310,10 @@ export function drawAnimatedTrains(
 	selectedStationId: string | null,
 	onTrainTap: (trainNo: string) => void,
 	activeLines: Set<number> = ALL_LINES,
+	trainLabelsLayer?: Container | null,
 ): void {
+	const now = performance.now();
+
 	for (const train of animatedTrains) {
 		const isNew = !pool.has(train.trainNo);
 		const gfx = pool.get(train.trainNo) ?? registerTrain(trainsLayer, pool, train, onTrainTap);
@@ -208,7 +324,7 @@ export function drawAnimatedTrains(
 
 		updateTrainRotation(gfx, train, isNew);
 
-		gfx.alpha = computeTrainAlpha(
+		let alpha = computeTrainAlpha(
 			train.trainNo,
 			train.toStationId,
 			selectedTrainNo,
@@ -217,7 +333,36 @@ export function drawAnimatedTrains(
 			activeLines,
 		);
 
+		// 페이드아웃 처리
+		if (train.fadeOutStartedAt !== undefined) {
+			const fadeElapsed = now - train.fadeOutStartedAt;
+			const fadeOutProgress = Math.min(fadeElapsed / TRAIN_FADEOUT_MS, 1);
+			alpha *= 1 - fadeOutProgress;
+			const scale = 1 - 0.5 * fadeOutProgress;
+			gfx.scale.set(scale);
+		} else {
+			// 신규 열차 페이드인 (500ms)
+			const age = now - train.createdAt;
+			if (age < TRAIN_FADEIN_MS) {
+				const fadeProgress = age / TRAIN_FADEIN_MS;
+				alpha *= fadeProgress;
+				// 살짝 커지는 스케일 효과
+				const scale = 0.5 + 0.5 * fadeProgress;
+				gfx.scale.set(scale);
+			} else if (gfx.scale.x !== 1) {
+				gfx.scale.set(1);
+			}
+		}
+
+		gfx.alpha = alpha;
+
 		updateHeadlightPulse(gfx);
+		updateMovingArrows(gfx, train, now);
 		updateSelectionRing(gfx, train, selectedTrainNo);
+	}
+
+	// 열차 번호 레이블 렌더링
+	if (trainLabelsLayer != null) {
+		renderTrainLabels(trainLabelsLayer, animatedTrains);
 	}
 }

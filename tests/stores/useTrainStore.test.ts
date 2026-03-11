@@ -10,8 +10,8 @@ const SCREEN_MAP = new Map<string, ScreenCoord>([
 ]);
 
 const ADJ_MAP = new Map<string, AdjacencyInfo>([
-	["S01", { prev: null, next: "S02" }],
-	["S02", { prev: "S01", next: null }],
+	["S01", { prevs: [], nexts: ["S02"] }],
+	["S02", { prevs: ["S01"], nexts: [] }],
 ]);
 
 const MOCK_TRAINS: TrainPosition[] = [
@@ -43,6 +43,7 @@ describe("useTrainStore", () => {
 			isPollingActive: false,
 			selectedTrainNo: null,
 			prevPollMap: new Map(),
+			prevInterpolatedMap: new Map(),
 		});
 	});
 
@@ -96,32 +97,42 @@ describe("useTrainStore", () => {
 		expect(useTrainStore.getState().selectedTrainNo).toBeNull();
 	});
 
-	it("최초 폴링 시 repeatCount가 1이다", () => {
+	it("한 폴 빠진 열차의 prevPollMap 이력이 유지된다", () => {
 		useTrainStore.getState().updatePositions(MOCK_TRAINS, SCREEN_MAP, ADJ_MAP);
-		const state = useTrainStore.getState();
-		const entry = state.prevPollMap.get("1001");
-		expect(entry).toBeDefined();
-		expect(entry?.repeatCount).toBe(1);
-	});
 
-	it("동일 상태 연속 폴링 시 repeatCount가 증가한다", () => {
-		useTrainStore.getState().updatePositions(MOCK_TRAINS, SCREEN_MAP, ADJ_MAP);
-		// 같은 데이터로 다시 폴링
-		useTrainStore.getState().updatePositions(MOCK_TRAINS, SCREEN_MAP, ADJ_MAP);
-		const state = useTrainStore.getState();
-		const entry = state.prevPollMap.get("1001");
-		expect(entry?.repeatCount).toBe(2);
-	});
-
-	it("상태 또는 역이 변경되면 repeatCount가 리셋된다", () => {
-		useTrainStore.getState().updatePositions(MOCK_TRAINS, SCREEN_MAP, ADJ_MAP);
-		useTrainStore.getState().updatePositions(MOCK_TRAINS, SCREEN_MAP, ADJ_MAP);
-		// 상태 변경
-		const baseTrain = MOCK_TRAINS[0];
+		const baseTrain = MOCK_TRAINS[1];
 		if (baseTrain === undefined) throw new Error("테스트 데이터 오류");
-		const changed: TrainPosition[] = [{ ...baseTrain, status: "출발" }];
-		useTrainStore.getState().updatePositions(changed, SCREEN_MAP, ADJ_MAP);
+		useTrainStore.getState().updatePositions([baseTrain], SCREEN_MAP, ADJ_MAP);
+
 		const entry = useTrainStore.getState().prevPollMap.get("1001");
-		expect(entry?.repeatCount).toBe(1);
+		expect(entry).toBeDefined();
+		expect(entry?.missedCount).toBe(1);
+	});
+
+	it("grace period 초과 시 이력이 삭제된다", () => {
+		useTrainStore.getState().updatePositions(MOCK_TRAINS, SCREEN_MAP, ADJ_MAP);
+
+		const baseTrain = MOCK_TRAINS[1];
+		if (baseTrain === undefined) throw new Error("테스트 데이터 오류");
+
+		useTrainStore.getState().updatePositions([baseTrain], SCREEN_MAP, ADJ_MAP);
+		useTrainStore.getState().updatePositions([baseTrain], SCREEN_MAP, ADJ_MAP);
+
+		const entry = useTrainStore.getState().prevPollMap.get("1001");
+		expect(entry).toBeUndefined();
+	});
+
+	it("grace 중인 열차가 interpolatedTrains에 포함된다", () => {
+		useTrainStore.getState().updatePositions(MOCK_TRAINS, SCREEN_MAP, ADJ_MAP);
+		const initialCount = useTrainStore.getState().interpolatedTrains.length;
+
+		const baseTrain = MOCK_TRAINS[1];
+		if (baseTrain === undefined) throw new Error("테스트 데이터 오류");
+		useTrainStore.getState().updatePositions([baseTrain], SCREEN_MAP, ADJ_MAP);
+
+		const state = useTrainStore.getState();
+		const train1001 = state.interpolatedTrains.find((t) => t.trainNo === "1001");
+		expect(train1001).toBeDefined();
+		expect(state.interpolatedTrains.length).toBe(initialCount);
 	});
 });

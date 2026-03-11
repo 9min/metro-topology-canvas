@@ -45,14 +45,6 @@ export interface PathPoint {
 	y: number;
 }
 
-/** 동적 예측률 계산에 필요한 이전 폴링 정보 */
-export interface TrainPollHistory {
-	prevStatus: "진입" | "도착" | "출발";
-	prevStationId: string;
-	/** 동일 (stationId + status) 연속 폴링 횟수. 1=첫 등장 */
-	repeatCount: number;
-}
-
 /** 애니메이션 중인 열차 상태 (TrainAnimator 내부용) */
 export interface AnimatedTrainState {
 	trainNo: string;
@@ -85,4 +77,8 @@ export interface AnimatedTrainState {
 	linear?: boolean;
 	/** 트랙 방향 각도 (라디안). 신규 열차 초기 회전에 사용 */
 	trackAngle?: number;
+	/** 열차 생성 시각 (ms). 페이드인 애니메이션에 사용 */
+	createdAt: number;
+	/** 페이드아웃 시작 시각 (ms). 설정되면 점진적으로 사라진다 */
+	fadeOutStartedAt?: number;
 }

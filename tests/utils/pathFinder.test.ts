@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Station, StationLink } from "@/types/station";
-import { buildStationGraph, findStationPath } from "@/utils/pathFinder";
+import { buildLineGraphMap, buildStationGraph, findStationPath } from "@/utils/pathFinder";
 import { buildTransferLinks, buildTransferMap } from "@/utils/transferStation";
 
 const TEST_LINKS: StationLink[] = [
@@ -64,6 +64,32 @@ describe("findStationPath", () => {
 	it("분기역을 통과하는 경로를 탐색한다", () => {
 		const path = findStationPath(graph, "A", "G");
 		expect(path).toEqual(["A", "B", "C", "F", "G"]);
+	});
+});
+
+describe("buildLineGraphMap", () => {
+	it("호선별로 분리된 그래프를 구축한다", () => {
+		const lineMap = buildLineGraphMap(TEST_LINKS);
+		expect(lineMap.size).toBe(2);
+		// 1호선: A-B-C-D-E
+		const line1 = lineMap.get(1);
+		expect(line1).toBeDefined();
+		expect(line1?.get("A")).toEqual(["B"]);
+		expect(line1?.get("C")).toEqual(expect.arrayContaining(["B", "D"]));
+		expect(line1?.get("C")).not.toContain("F"); // F는 2호선
+		// 2호선: C-F-G
+		const line2 = lineMap.get(2);
+		expect(line2).toBeDefined();
+		expect(line2?.get("C")).toEqual(["F"]);
+		expect(line2?.get("F")).toEqual(expect.arrayContaining(["C", "G"]));
+	});
+
+	it("호선 내 BFS는 다른 호선을 경유하지 않는다", () => {
+		const lineMap = buildLineGraphMap(TEST_LINKS);
+		const line1 = lineMap.get(1);
+		// 1호선 그래프에서 F, G는 도달 불가
+		const path = findStationPath(line1!, "A", "F");
+		expect(path).toEqual([]);
 	});
 });
 

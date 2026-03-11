@@ -49,15 +49,41 @@ describe("buildAdjacencyMap", () => {
 		const adj = buildAdjacencyMap(MOCK_LINKS);
 
 		const seoul = adj.get("L1S08");
-		expect(seoul?.prev).toBeNull();
-		expect(seoul?.next).toBe("L1S09");
+		expect(seoul?.prevs).toEqual([]);
+		expect(seoul?.nexts).toEqual(["L1S09"]);
 
 		const city = adj.get("L1S09");
-		expect(city?.prev).toBe("L1S08");
-		expect(city?.next).toBe("L1S10");
+		expect(city?.prevs).toEqual(["L1S08"]);
+		expect(city?.nexts).toEqual(["L1S10"]);
 
 		const jonggak = adj.get("L1S10");
-		expect(jonggak?.prev).toBe("L1S09");
-		expect(jonggak?.next).toBeNull();
+		expect(jonggak?.prevs).toEqual(["L1S09"]);
+		expect(jonggak?.nexts).toEqual([]);
+	});
+
+	it("분기점에서 다중 nexts를 저장한다", () => {
+		const branchLinks: StationLink[] = [
+			{ source: "A", target: "B", line: 1 },
+			{ source: "A", target: "C", line: 1 },
+			{ source: "A", target: "D", line: 1 },
+		];
+		const adj = buildAdjacencyMap(branchLinks);
+		const a = adj.get("A");
+		expect(a?.nexts).toEqual(["B", "C", "D"]);
+		expect(a?.prevs).toEqual([]);
+		// B, C, D 모두 A를 prev로 가짐
+		expect(adj.get("B")?.prevs).toEqual(["A"]);
+		expect(adj.get("C")?.prevs).toEqual(["A"]);
+		expect(adj.get("D")?.prevs).toEqual(["A"]);
+	});
+
+	it("중복 링크를 무시한다", () => {
+		const dupLinks: StationLink[] = [
+			{ source: "A", target: "B", line: 1 },
+			{ source: "A", target: "B", line: 1 },
+		];
+		const adj = buildAdjacencyMap(dupLinks);
+		expect(adj.get("A")?.nexts).toEqual(["B"]);
+		expect(adj.get("B")?.prevs).toEqual(["A"]);
 	});
 });

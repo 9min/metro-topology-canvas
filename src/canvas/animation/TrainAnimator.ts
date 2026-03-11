@@ -1,101 +1,18 @@
 import type { Container, Graphics } from "pixi.js";
-import { MAX_TRAIN_ANIM_DIST, TRAIN_ANIMATION_DURATION_MS } from "@/constants/mapConfig";
+import { TRAIN_ANIMATION_DURATION_MS, TRAIN_FADEOUT_MS } from "@/constants/mapConfig";
 import { useMapStore } from "@/stores/useMapStore";
 import { useStationStore } from "@/stores/useStationStore";
 import { useTrainStore } from "@/stores/useTrainStore";
-import type { ScreenCoord } from "@/types/map";
 import type { AnimatedTrainState, InterpolatedTrain, PathPoint } from "@/types/train";
-import { easeInOutCubic } from "@/utils/easing";
-import type { StationGraph } from "@/utils/pathFinder";
-import { findStationPath } from "@/utils/pathFinder";
+import type { AdjacencyInfo } from "@/utils/stationNameResolver";
 import { drawAnimatedTrains } from "../objects/TrainParticle";
 
-/** path의 누적 거리 배열을 계산한다 */
-function computeCumulativeDist(path: PathPoint[]): number[] {
-	const dist = [0];
-	for (let i = 1; i < path.length; i++) {
-		const prev = path[i - 1] as PathPoint;
-		const curr = path[i] as PathPoint;
-		const dx = curr.x - prev.x;
-		const dy = curr.y - prev.y;
-		dist.push((dist[i - 1] as number) + Math.sqrt(dx * dx + dy * dy));
-	}
-	return dist;
-}
-
-/** 이전 위치→새 목표 사이 다점 경로를 구성한다 */
-function buildMultiPointPath(
-	existing: AnimatedTrainState,
-	train: InterpolatedTrain,
-	stationScreenMap?: Map<string, ScreenCoord>,
-	stationGraph?: StationGraph,
-): PathPoint[] {
-	const startPoint: PathPoint = { x: existing.currentX, y: existing.currentY };
-	const endPoint: PathPoint = { x: train.x, y: train.y };
-
-	// 그래프 또는 좌표맵이 없으면 직선
-	if (stationGraph === undefined || stationScreenMap === undefined) {
-		return [startPoint, endPoint];
-	}
-
-	// 이전 목표역(toStationId)에서 새 출발역(fromStationId)까지 BFS 탐색
-	const prevToStation = existing.toStationId;
-	const newFromStation = train.fromStationId;
-
-	// 같은 역이면: BFS 불필요하나 현재→목표 사이에 경유역이 있으면 waypoint 추가
-	if (prevToStation === newFromStation) {
-		const wayCoord = stationScreenMap.get(prevToStation);
-		if (wayCoord !== undefined) {
-			const ctsX = wayCoord.x - startPoint.x;
-			const ctsY = wayCoord.y - startPoint.y;
-			const cteX = endPoint.x - startPoint.x;
-			const cteY = endPoint.y - startPoint.y;
-			const dot = ctsX * cteX + ctsY * cteY;
-			const stationDist2 = ctsX * ctsX + ctsY * ctsY;
-			const targetDist2 = cteX * cteX + cteY * cteY;
-			// 역이 현재→목표 사이에 있을 때만 경유역으로 포함
-			if (dot > 0 && stationDist2 > 4 && stationDist2 < targetDist2) {
-				return [startPoint, { x: wayCoord.x, y: wayCoord.y }, endPoint];
-			}
-		}
-		return [startPoint, endPoint];
-	}
-
-	if (prevToStation === train.toStationId) {
-		return [startPoint, endPoint];
-	}
-
-	const stationPath = findStationPath(stationGraph, prevToStation, newFromStation);
-
-	// 경로를 못 찾거나 너무 짧으면 직선
-	if (stationPath.length < 2 || stationPath.length > 4) {
-		return [startPoint, endPoint];
-	}
-
-	// BFS 경로 방향 검증: 경로 벡터와 실제 이동 벡터의 내적이 음수면 역방향 → 직선 fallback
-	const firstCoord = stationScreenMap.get(stationPath[0] as string);
-	const lastCoord = stationScreenMap.get(stationPath[stationPath.length - 1] as string);
-	if (firstCoord !== undefined && lastCoord !== undefined) {
-		const pathDx = lastCoord.x - firstCoord.x;
-		const pathDy = lastCoord.y - firstCoord.y;
-		const moveDx = endPoint.x - startPoint.x;
-		const moveDy = endPoint.y - startPoint.y;
-		if (pathDx * moveDx + pathDy * moveDy < 0) {
-			return [startPoint, endPoint];
-		}
-	}
-
-	// 경유역 좌표를 경로에 추가 (BFS 첫/끝 역은 시작점/끝점과 중복되므로 중간역만 삽입)
-	const path: PathPoint[] = [startPoint];
-	for (let i = 1; i < stationPath.length - 1; i++) {
-		const coord = stationScreenMap.get(stationPath[i] as string);
-		if (coord !== undefined) {
-			path.push({ x: coord.x, y: coord.y });
-		}
-	}
-	path.push(endPoint);
-
-	return path;
+/** 두 역이 인접(직접 연결)한지 판정한다 */
+function isAdjacentStation(a: string, b: string, map: Map<string, AdjacencyInfo>): boolean {
+	if (a === b) return true;
+	const adj = map.get(a);
+	if (adj === undefined) return false;
+	return adj.nexts.includes(b) || adj.prevs.includes(b);
 }
 
 /** 기존 열차의 애니메이션 상태를 새 목표로 갱신한다 */
@@ -104,9 +21,7 @@ function updateExistingTrain(
 	train: InterpolatedTrain,
 	now: number,
 	animDuration: number,
-	linear: boolean,
-	stationScreenMap?: Map<string, ScreenCoord>,
-	stationGraph?: StationGraph,
+	adjacencyMap?: Map<string, AdjacencyInfo>,
 ): void {
 	existing.startX = existing.currentX;
 	existing.startY = existing.currentY;
@@ -114,38 +29,39 @@ function updateExistingTrain(
 	existing.targetY = train.y;
 	existing.startTime = now;
 	existing.direction = train.direction;
-	existing.linear = linear;
+	existing.linear = true;
 
-	// path를 먼저 구성한 후 polyline 총거리로 텔레포트 여부를 판단한다
-	const path = buildMultiPointPath(existing, train, stationScreenMap, stationGraph);
-	existing.path = path;
-	existing.pathCumulativeDist = computeCumulativeDist(path);
-	const totalDist = existing.pathCumulativeDist[existing.pathCumulativeDist.length - 1] as number;
+	const dx = existing.targetX - existing.startX;
+	const dy = existing.targetY - existing.startY;
+	const dist2 = dx * dx + dy * dy;
 
-	// 텔레포트 판정: 거리 초과 또는 역방향 이동
-	let shouldTeleport = totalDist > MAX_TRAIN_ANIM_DIST;
-
-	if (!shouldTeleport) {
-		const newDirX = existing.targetX - existing.startX;
-		const newDirY = existing.targetY - existing.startY;
-		const newLen2 = newDirX * newDirX + newDirY * newDirY;
-		// train.trackAngle(매 폴링마다 역 토폴로지 기반으로 fresh하게 계산됨)과 이동 벡터의
-		// 내적이 음수면 역방향 → 텔레포트. prevDirX/prevDirY 방식은 텔레포트 후
-		// backward vector를 캡처하여 다음 폴링에서 오판(진동)을 유발하므로 사용하지 않는다.
-		if (newLen2 > 1) {
-			const expectedDirX = Math.cos(train.trackAngle);
-			const expectedDirY = Math.sin(train.trackAngle);
-			if (expectedDirX * newDirX + expectedDirY * newDirY < 0) {
-				shouldTeleport = true;
-			}
-		}
+	if (dist2 < 0.1) {
+		// 같은 좌표 → 정지
+		existing.duration = 0;
+	} else if (
+		adjacencyMap !== undefined &&
+		existing.toStationId !== "" &&
+		!isAdjacentStation(existing.toStationId, train.toStationId, adjacencyMap)
+	) {
+		// 비인접 역 → 텔레포트 (1분 애니메이션 없이 즉시 배치)
+		existing.duration = 0;
+	} else {
+		// 인접 역 → 등속 직선 이동
+		existing.duration = animDuration;
 	}
 
-	existing.duration = shouldTeleport ? 0 : animDuration;
+	// 경로는 항상 2점 (시작→끝)
+	const path: PathPoint[] = [
+		{ x: existing.startX, y: existing.startY },
+		{ x: existing.targetX, y: existing.targetY },
+	];
+	existing.path = path;
+	existing.pathCumulativeDist = [0, Math.sqrt(dist2)];
 
-	// 텔레포트 또는 정지(동일 위치) 시 interpolation의 트랙 방향을 사용한다.
-	// 일반 애니메이션에서는 advanceTrainState가 프레임별로 이동 방향에서 갱신한다.
-	if (shouldTeleport || totalDist < 0.1) {
+	// 이동 방향으로 trackAngle 설정
+	if (dist2 > 0.01) {
+		existing.trackAngle = Math.atan2(dy, dx);
+	} else {
 		existing.trackAngle = train.trackAngle;
 	}
 
@@ -154,143 +70,45 @@ function updateExistingTrain(
 }
 
 /** 신규 열차의 애니메이션 상태를 생성한다 */
-function createNewTrainState(
-	train: InterpolatedTrain,
-	now: number,
-	linear: boolean,
-	animDuration: number,
-	stationScreenMap?: Map<string, ScreenCoord>,
-): AnimatedTrainState {
-	// fromStationId 좌표를 시작점으로 사용
-	let startX = train.x;
-	let startY = train.y;
-	let duration = 0;
-
-	if (stationScreenMap !== undefined) {
-		const fromCoord = stationScreenMap.get(train.fromStationId);
-		if (fromCoord !== undefined) {
-			const dx = train.x - fromCoord.x;
-			const dy = train.y - fromCoord.y;
-			// 거리가 충분하면 애니메이션 적용 (3px 이하 미세 이동 방지)
-			if (dx * dx + dy * dy > 9) {
-				startX = fromCoord.x;
-				startY = fromCoord.y;
-				duration = animDuration;
-			}
-		}
-	}
-
+function createNewTrainState(train: InterpolatedTrain, now: number): AnimatedTrainState {
 	const path: PathPoint[] = [
-		{ x: startX, y: startY },
+		{ x: train.x, y: train.y },
 		{ x: train.x, y: train.y },
 	];
 	return {
 		trainNo: train.trainNo,
 		line: train.line,
 		direction: train.direction,
-		startX,
-		startY,
+		startX: train.x,
+		startY: train.y,
 		targetX: train.x,
 		targetY: train.y,
-		currentX: startX,
-		currentY: startY,
+		currentX: train.x,
+		currentY: train.y,
 		startTime: now,
-		duration,
+		duration: 0,
 		fromStationId: train.fromStationId,
 		toStationId: train.toStationId,
 		path,
-		pathCumulativeDist: computeCumulativeDist(path),
-		linear,
+		pathCumulativeDist: [0, 0],
+		linear: true,
 		trackAngle: train.trackAngle,
+		createdAt: now,
 	};
 }
 
-/** polyline의 t 위치에서 현재 세그먼트 방향(라디안)을 반환한다 */
-function computeSegmentAngle(
-	path: PathPoint[],
-	cumulativeDist: number[],
-	t: number,
-): number | undefined {
-	const totalDist = cumulativeDist[cumulativeDist.length - 1] as number;
-	if (totalDist <= 0) return undefined;
-	const targetDist = t * totalDist;
-	for (let i = 1; i < cumulativeDist.length; i++) {
-		if (targetDist <= (cumulativeDist[i] as number)) {
-			const p0 = path[i - 1] as PathPoint;
-			const p1 = path[i] as PathPoint;
-			const dx = p1.x - p0.x;
-			const dy = p1.y - p0.y;
-			return dx * dx + dy * dy > 0.01 ? Math.atan2(dy, dx) : undefined;
-		}
-	}
-	// fallback: 마지막 세그먼트
-	const p0 = path[path.length - 2] as PathPoint;
-	const p1 = path[path.length - 1] as PathPoint;
-	const dx = p1.x - p0.x;
-	const dy = p1.y - p0.y;
-	return dx * dx + dy * dy > 0.01 ? Math.atan2(dy, dx) : undefined;
-}
-
-/** 누적 거리 기반으로 t(0~1)를 path 세그먼트에 매핑하여 보간한다 */
-function interpolateAlongPath(path: PathPoint[], cumulativeDist: number[], t: number): PathPoint {
-	const totalDist = cumulativeDist[cumulativeDist.length - 1] as number;
-
-	// 총 거리가 0이면 첫 점 반환
-	if (totalDist <= 0) {
-		return path[0] as PathPoint;
-	}
-
-	const targetDist = t * totalDist;
-
-	// 해당 거리에 속하는 세그먼트 찾기
-	for (let i = 1; i < cumulativeDist.length; i++) {
-		const prevDist = cumulativeDist[i - 1] as number;
-		const currDist = cumulativeDist[i] as number;
-
-		if (targetDist <= currDist) {
-			const segmentLen = currDist - prevDist;
-			const segT = segmentLen > 0 ? (targetDist - prevDist) / segmentLen : 0;
-			const p0 = path[i - 1] as PathPoint;
-			const p1 = path[i] as PathPoint;
-			return {
-				x: p0.x + (p1.x - p0.x) * segT,
-				y: p0.y + (p1.y - p0.y) * segT,
-			};
-		}
-	}
-
-	// fallback: 마지막 점
-	return path[path.length - 1] as PathPoint;
-}
-
-/** 단일 열차의 프레임별 위치를 보간한다 */
+/** 단일 열차의 프레임별 위치를 보간한다 (항상 2점 직선 선형 보간) */
 function advanceTrainState(state: AnimatedTrainState, now: number): void {
 	if (state.duration <= 0) {
 		state.currentX = state.targetX;
 		state.currentY = state.targetY;
-		return; // trackAngle 유지
+		return;
 	}
 	const elapsed = now - state.startTime;
-	const rawT = Math.min(elapsed / state.duration, 1);
-	const t = state.linear ? rawT : easeInOutCubic(rawT);
+	const t = Math.min(elapsed / state.duration, 1);
 
-	if (state.path.length <= 2) {
-		state.currentX = state.startX + (state.targetX - state.startX) * t;
-		state.currentY = state.startY + (state.targetY - state.startY) * t;
-		const dx = state.targetX - state.startX;
-		const dy = state.targetY - state.startY;
-		if (dx * dx + dy * dy > 0.01) {
-			state.trackAngle = Math.atan2(dy, dx);
-		}
-	} else {
-		const pos = interpolateAlongPath(state.path, state.pathCumulativeDist, t);
-		state.currentX = pos.x;
-		state.currentY = pos.y;
-		const angle = computeSegmentAngle(state.path, state.pathCumulativeDist, t);
-		if (angle !== undefined) {
-			state.trackAngle = angle;
-		}
-	}
+	state.currentX = state.startX + (state.targetX - state.startX) * t;
+	state.currentY = state.startY + (state.targetY - state.startY) * t;
 }
 
 /**
@@ -301,12 +119,18 @@ function advanceTrainState(state: AnimatedTrainState, now: number): void {
 export class TrainAnimator {
 	private states: Map<string, AnimatedTrainState> = new Map();
 	private trainsLayer: Container | null = null;
+	private trainLabelsLayer: Container | null = null;
 	private graphicsPool: Map<string, Graphics> = new Map();
 	private onTrainTap: ((trainNo: string) => void) | null = null;
 
 	/** 렌더링 대상 레이어를 설정한다 */
 	setLayer(layer: Container): void {
 		this.trainsLayer = layer;
+	}
+
+	/** 열차 번호 레이블 레이어를 설정한다 */
+	setTrainLabelsLayer(layer: Container): void {
+		this.trainLabelsLayer = layer;
 	}
 
 	/** 열차 클릭 콜백을 등록한다 */
@@ -328,21 +152,18 @@ export class TrainAnimator {
 	setTargets(
 		interpolated: InterpolatedTrain[],
 		duration?: number,
-		linear?: boolean,
-		stationScreenMap?: Map<string, ScreenCoord>,
-		stationGraph?: StationGraph,
+		adjacencyMap?: Map<string, AdjacencyInfo>,
 	): void {
 		const now = performance.now();
 		const animDuration = duration ?? TRAIN_ANIMATION_DURATION_MS;
 		const newKeys = new Set<string>();
-		const isLinear = linear ?? false;
 
 		for (const train of interpolated) {
 			newKeys.add(train.trainNo);
-			this.upsertTrain(train, now, animDuration, isLinear, stationScreenMap, stationGraph);
+			this.upsertTrain(train, now, animDuration, adjacencyMap);
 		}
 
-		this.removeStaleTrain(newKeys);
+		this.markStaleForFadeOut(newKeys);
 	}
 
 	/** 단일 열차의 상태를 갱신하거나 신규 생성한다 */
@@ -350,33 +171,36 @@ export class TrainAnimator {
 		train: InterpolatedTrain,
 		now: number,
 		animDuration: number,
-		isLinear: boolean,
-		stationScreenMap?: Map<string, ScreenCoord>,
-		stationGraph?: StationGraph,
+		adjacencyMap?: Map<string, AdjacencyInfo>,
 	): void {
 		const existing = this.states.get(train.trainNo);
 		if (existing !== undefined) {
-			updateExistingTrain(
-				existing,
-				train,
-				now,
-				animDuration,
-				isLinear,
-				stationScreenMap,
-				stationGraph,
-			);
+			// fade-out 중 복귀 → fade-out 취소
+			if (existing.fadeOutStartedAt !== undefined) {
+				existing.fadeOutStartedAt = undefined;
+			}
+			updateExistingTrain(existing, train, now, animDuration, adjacencyMap);
 		} else {
-			this.states.set(
-				train.trainNo,
-				createNewTrainState(train, now, isLinear, animDuration, stationScreenMap),
-			);
+			this.states.set(train.trainNo, createNewTrainState(train, now));
 		}
 	}
 
-	/** 새 데이터에 없는 열차를 제거한다 */
-	private removeStaleTrain(newKeys: Set<string>): void {
-		for (const key of this.states.keys()) {
-			if (!newKeys.has(key)) {
+	/** 새 데이터에 없는 열차를 fade-out 상태로 전환한다 */
+	private markStaleForFadeOut(newKeys: Set<string>): void {
+		const now = performance.now();
+		for (const [key, state] of this.states) {
+			if (!newKeys.has(key) && state.fadeOutStartedAt === undefined) {
+				state.fadeOutStartedAt = now;
+			}
+		}
+	}
+
+	/** fade-out이 완료된 열차를 실제 삭제한다 */
+	private removeCompletedFadeOuts(now: number): void {
+		for (const [key, state] of this.states) {
+			if (state.fadeOutStartedAt === undefined) continue;
+			const elapsed = now - state.fadeOutStartedAt;
+			if (elapsed >= TRAIN_FADEOUT_MS) {
 				this.states.delete(key);
 				const gfx = this.graphicsPool.get(key);
 				if (gfx !== undefined && this.trainsLayer !== null) {
@@ -388,13 +212,17 @@ export class TrainAnimator {
 	}
 
 	/**
-	 * 매 프레임 호출 — 이징으로 열차 위치를 보간하고 렌더링한다.
+	 * 매 프레임 호출 — 등속 직선 보간으로 열차 위치를 갱신하고 렌더링한다.
 	 * PixiJS ticker의 콜백으로 등록한다.
 	 */
 	update(): void {
 		if (this.trainsLayer === null) return;
 
 		const now = performance.now();
+
+		// fade-out 완료된 열차 제거
+		this.removeCompletedFadeOuts(now);
+
 		const trainList: AnimatedTrainState[] = [];
 
 		for (const state of this.states.values()) {
@@ -414,6 +242,7 @@ export class TrainAnimator {
 			selectedStation?.id ?? null,
 			this.onTrainTap ?? ((_no: string) => {}),
 			activeLines,
+			this.trainLabelsLayer,
 		);
 	}
 

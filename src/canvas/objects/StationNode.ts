@@ -37,7 +37,20 @@ function resolveStationAlpha(
 	selectedStationId: string | null,
 	adjacentIds: Set<string> | null,
 	activeLines: Set<number>,
+	transferMap?: TransferMap,
 ): number {
+	// 환승역: 그룹 내 활성 호선이 하나라도 있으면 line 비활성 무시
+	if (transferMap !== undefined) {
+		const group = transferMap.get(station.name);
+		if (group !== undefined && group.length >= 2) {
+			const anyActive = group.some((s) => activeLines.has(s.line));
+			if (anyActive) {
+				if (selectedStationId === null) return 1.0;
+				return stationAlpha(station.id, selectedStationId, adjacentIds ?? new Set());
+			}
+			return 0.2; // 그룹 전체 비활성
+		}
+	}
 	if (!activeLines.has(station.line)) return 0.2;
 	if (selectedStationId === null) return 1.0;
 	return stationAlpha(station.id, selectedStationId, adjacentIds ?? new Set());
@@ -53,6 +66,7 @@ export function updateStationAlpha(
 	stations: Station[],
 	selectedStationId: string | null,
 	activeLines: Set<number> = ALL_LINES,
+	transferMap?: TransferMap,
 ): void {
 	const adjacentIds = selectedStationId !== null ? buildAdjacentIds(selectedStationId) : null;
 
@@ -61,7 +75,13 @@ export function updateStationAlpha(
 		if (station === undefined) continue;
 		const child = stationsLayer.children[i];
 		if (child === undefined) continue;
-		child.alpha = resolveStationAlpha(station, selectedStationId, adjacentIds, activeLines);
+		child.alpha = resolveStationAlpha(
+			station,
+			selectedStationId,
+			adjacentIds,
+			activeLines,
+			transferMap,
+		);
 	}
 }
 
