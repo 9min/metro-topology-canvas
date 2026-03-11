@@ -125,56 +125,6 @@ GitHub 저장소 설정에서 다음 상태 체크를 필수로 지정한다:
 
 모든 체크가 통과해야 PR 머지가 가능하다.
 
-## Supabase 배포
-
-### 로컬 개발 환경
-
-```bash
-# Supabase CLI로 로컬 환경 실행
-npx supabase start
-
-# 로컬 환경 중지
-npx supabase stop
-
-# DB 리셋 (마이그레이션 재적용)
-npx supabase db reset
-
-# 타입 재생성
-npx supabase gen types typescript --local > src/types/database.ts
-```
-
-### 마이그레이션 배포
-
-Supabase 프로젝트에 마이그레이션을 적용하는 방법:
-
-```bash
-# Supabase 프로젝트 연결
-npx supabase link --project-ref <project-id>
-
-# 원격에 마이그레이션 적용
-npx supabase db push
-```
-
-### Edge Functions 배포
-
-```bash
-# 특정 함수 배포
-npx supabase functions deploy <function-name>
-
-# 모든 함수 배포
-npx supabase functions deploy
-```
-
-### 환경 분리
-
-| 환경 | Supabase 프로젝트 | 프론트엔드 |
-|------|------------------|----------|
-| 로컬 | `supabase start` (로컬 Docker) | `localhost:5173` |
-| Preview | Staging 프로젝트 | Vercel Preview |
-| Production | Production 프로젝트 | Vercel Production |
-
-프로덕션과 스테이징 Supabase 프로젝트를 별도로 운영하여 데이터를 격리한다.
-
 ## 배포 체크리스트
 
 ### 프로덕션 배포 전 확인 사항
@@ -182,11 +132,7 @@ npx supabase functions deploy
 - [ ] 모든 CI 체크 통과
 - [ ] PR 리뷰 승인 완료
 - [ ] Preview 배포에서 기능 검증 완료
-- [ ] Vercel 환경변수 설정 확인 (SUPABASE_URL, ANON_KEY)
-- [ ] Supabase 마이그레이션 적용 여부 확인 (`supabase db push`)
-- [ ] RLS 정책이 모든 테이블에 적용되었는지 확인
-- [ ] Edge Functions 배포 여부 확인 (변경된 경우)
-- [ ] 타입 파일(`database.ts`) 최신 상태 확인
+- [ ] Vercel 환경변수 설정 확인 (`VITE_SEOUL_API_KEY`)
 - [ ] 롤백 계획 수립
 
 ## 관련 문서

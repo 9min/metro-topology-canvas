@@ -22,6 +22,8 @@ src/stores/
 ├── useStationStore.ts      # 역 선택 상태, 스테이션 인스펙터
 ├── useMapStore.ts          # 줌/팬 상태, 활성 노선 필터, 히트맵 토글
 ├── useSimulationStore.ts   # 시뮬레이션/실제운행 모드 상태 (AppMode)
+├── useRouteStore.ts        # 경로 탐색 상태 (출발/도착역, 경로, 환승 정보)
+├── useDebugStore.ts        # 디버그 모드 상태 (열차 번호 표시, 목표점 마커 등)
 └── usePerfStore.ts         # 성능 모니터링 메트릭 (FPS, 렌더 시간 등)
 ```
 
@@ -121,6 +123,64 @@ interface SimulationState {
 export const useSimulationStore = create<SimulationState>((set) => ({
   mode: "simulation",
   setMode: (mode) => set({ mode }),
+}));
+```
+
+### 경로 탐색 스토어
+
+```ts
+// src/stores/useRouteStore.ts
+import { create } from "zustand";
+
+interface RouteState {
+  fromStation: Station | null;
+  toStation: Station | null;
+  route: string[] | null;
+  transferCount: number;
+  estimatedMinutes: number;
+  transferDetails: TransferDetail[];
+  isRouteMode: boolean;
+  setFromStation: (station: Station | null) => void;
+  setToStation: (...) => void;
+  clearRoute: () => void;
+  toggleRouteMode: () => void;
+}
+
+export const useRouteStore = create<RouteState>((set) => ({
+  fromStation: null,
+  toStation: null,
+  route: null,
+  transferCount: 0,
+  estimatedMinutes: 0,
+  transferDetails: [],
+  isRouteMode: false,
+  // ...
+}));
+```
+
+### 디버그 스토어
+
+```ts
+// src/stores/useDebugStore.ts
+import { create } from "zustand";
+
+interface DebugState {
+  /** D 키: 열차 번호 텍스트 + 디버그 HUD */
+  debugMode: boolean;
+  /** A 키: 이징 우회, 즉시 목표 위치 점프 */
+  skipAnimation: boolean;
+  /** T 키: 보간 목표점 빨간 원 */
+  showTargetMarkers: boolean;
+  toggleDebugMode: () => void;
+  toggleSkipAnimation: () => void;
+  toggleTargetMarkers: () => void;
+}
+
+export const useDebugStore = create<DebugState>((set, get) => ({
+  debugMode: false,
+  skipAnimation: false,
+  showTargetMarkers: false,
+  // ...
 }));
 ```
 

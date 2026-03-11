@@ -9,10 +9,16 @@
 ├── .vscode/                    # VSCode 설정 (settings.json, extensions.json 등)
 ├── .github/                    # GitHub Actions 워크플로우
 │   └── workflows/
+├── api/                        # Vercel Serverless Functions (API 프록시)
+├── scripts/                    # 데이터 수집/분석 스크립트
+│   ├── captureTrainMovement.ts # 열차 이동 데이터 캡처
+│   ├── collectApiData.ts       # 공공 API 데이터 수집
+│   └── generate-og.mjs         # OG 이미지 생성
 ├── src/
 │   ├── app/                    # 앱 진입점, 라우팅 설정
 │   ├── canvas/                 # PixiJS 렌더링 엔진
 │   │   ├── renderer/           # PixiJS Application 초기화, 렌더 루프
+│   │   ├── animation/          # 60fps 열차 애니메이션 엔진
 │   │   ├── objects/            # 렌더링 객체 (역, 노선, 열차 입자)
 │   │   └── interactions/       # 줌/팬, 클릭 이벤트 처리
 │   ├── components/             # React 컴포넌트
@@ -28,6 +34,8 @@
 │   ├── utils/                  # 유틸리티 함수 (보간 알고리즘 등)
 │   └── constants/              # 상수 정의 (호선 색상, API URL 등)
 ├── tests/                      # 테스트 파일
+│   ├── fixtures/               # API 응답 픽스처 데이터
+│   └── utils/helpers/          # 테스트 헬퍼 유틸리티
 ├── docs/                       # 프로젝트 문서
 ├── public/                     # 정적 파일
 ├── .env.example                # 환경변수 키 목록 (Git 추적)
@@ -60,7 +68,8 @@ src/canvas/
 │   ├── LineLink.ts             # 노선 연결선 렌더링 객체
 │   ├── TrainParticle.ts        # 열차 입자 렌더링 객체
 │   ├── TrainTrail.ts           # 열차 모션 트레일
-│   └── CongestionHeatmap.ts    # 혼잡도 히트맵
+│   ├── CongestionHeatmap.ts    # 혼잡도 히트맵
+│   └── RoutePath.ts            # 경로 탐색 결과 렌더링
 └── interactions/
     ├── zoomPan.ts              # 줌/팬 인터랙션
     ├── stationClick.ts         # 역 클릭 이벤트
@@ -152,6 +161,22 @@ export interface TrainPosition {
   line: number;
   direction: "상행" | "하행";
   status: "진입" | "도착" | "출발";
+}
+
+export interface InterpolatedTrain {
+  trainNo: string;
+  line: number;
+  x: number;
+  y: number;
+  /** 열차가 물리적으로 위치한 역의 화면 X 좌표 */
+  stationX: number;
+  /** 열차가 물리적으로 위치한 역의 화면 Y 좌표 */
+  stationY: number;
+  direction: "상행" | "하행";
+  progress: number;
+  fromStationId: string;
+  toStationId: string;
+  trackAngle: number;
 }
 ```
 

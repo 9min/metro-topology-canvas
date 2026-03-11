@@ -22,11 +22,26 @@ function updateExistingTrain(
 	now: number,
 	animDuration: number,
 	adjacencyMap?: Map<string, AdjacencyInfo>,
+	continuousMode = false,
 ): void {
-	// 역이 바뀌었으면 물리적 역 좌표로 시작점 재설정 (라인 이탈 방지)
 	const stationChanged = existing.fromStationId !== train.fromStationId;
-	existing.startX = stationChanged ? train.stationX : existing.currentX;
-	existing.startY = stationChanged ? train.stationY : existing.currentY;
+
+	if (continuousMode) {
+		// 시뮬레이션 모드: 항상 현재 시각 위치에서 부드럽게 연속
+		// stationX/Y 리셋 금지 — 순간이동의 원인
+		existing.startX = existing.currentX;
+		existing.startY = existing.currentY;
+	} else if (stationChanged) {
+		// 실시간 모드: 역 변경 시 인접 여부로 시작점 결정
+		const isAdjacent =
+			adjacencyMap !== undefined &&
+			isAdjacentStation(existing.fromStationId, train.fromStationId, adjacencyMap);
+		existing.startX = isAdjacent ? existing.currentX : train.stationX;
+		existing.startY = isAdjacent ? existing.currentY : train.stationY;
+	} else {
+		existing.startX = existing.currentX;
+		existing.startY = existing.currentY;
+	}
 	existing.targetX = train.x;
 	existing.targetY = train.y;
 	existing.startTime = now;
@@ -72,22 +87,25 @@ function updateExistingTrain(
 }
 
 /** 신규 열차의 애니메이션 상태를 생성한다 */
-function createNewTrainState(train: InterpolatedTrain, now: number): AnimatedTrainState {
-	// 출발 상태여도 물리적 역 좌표에 배치 (다음역 좌표 사용 시 라인 이탈 방지)
+function createNewTrainState(train: InterpolatedTrain, now: number, continuousMode = false): AnimatedTrainState {
+	// 시뮬레이션: train.x/y = 이미 보간된 실제 위치
+	// 실시간: train.stationX/Y = 역 물리 좌표 (라인 이탈 방지)
+	const initX = continuousMode ? train.x : train.stationX;
+	const initY = continuousMode ? train.y : train.stationY;
 	const path: PathPoint[] = [
-		{ x: train.stationX, y: train.stationY },
-		{ x: train.stationX, y: train.stationY },
+		{ x: initX, y: initY },
+		{ x: initX, y: initY },
 	];
 	return {
 		trainNo: train.trainNo,
 		line: train.line,
 		direction: train.direction,
-		startX: train.stationX,
-		startY: train.stationY,
-		targetX: train.stationX,
-		targetY: train.stationY,
-		currentX: train.stationX,
-		currentY: train.stationY,
+		startX: initX,
+		startY: initY,
+		targetX: initX,
+		targetY: initY,
+		currentX: initX,
+		currentY: initY,
 		startTime: now,
 		duration: 0,
 		fromStationId: train.fromStationId,
@@ -159,11 +177,13 @@ export class TrainAnimator {
 	): void {
 		const now = performance.now();
 		const animDuration = duration ?? TRAIN_ANIMATION_DURATION_MS;
+		// duration이 명시적으로 전달되면 시뮬레이션 모드 (연속 보간)
+		const continuousMode = duration !== undefined;
 		const newKeys = new Set<string>();
 
 		for (const train of interpolated) {
 			newKeys.add(train.trainNo);
-			this.upsertTrain(train, now, animDuration, adjacencyMap);
+			this.upsertTrain(train, now, animDuration, adjacencyMap, continuousMode);
 		}
 
 		this.markStaleForFadeOut(newKeys);
@@ -174,7 +194,8 @@ export class TrainAnimator {
 		train: InterpolatedTrain,
 		now: number,
 		animDuration: number,
-		adjacencyMap?: Map<string, AdjacencyInfo>,
+		adjacencyMap: Map<string, AdjacencyInfo> | undefined,
+		continuousMode: boolean,
 	): void {
 		const existing = this.states.get(train.trainNo);
 		if (existing !== undefined) {
@@ -182,9 +203,9 @@ export class TrainAnimator {
 			if (existing.fadeOutStartedAt !== undefined) {
 				existing.fadeOutStartedAt = undefined;
 			}
-			updateExistingTrain(existing, train, now, animDuration, adjacencyMap);
+			updateExistingTrain(existing, train, now, animDuration, adjacencyMap, continuousMode);
 		} else {
-			this.states.set(train.trainNo, createNewTrainState(train, now));
+			this.states.set(train.trainNo, createNewTrainState(train, now, continuousMode));
 		}
 	}
 

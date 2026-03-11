@@ -22,12 +22,41 @@
 │   ├── stores/useTrainStore.ts
 │   └── utils/trainInterpolation.ts
 └── tests/
-    ├── canvas/animation/TrainAnimator.test.ts
-    ├── canvas/objects/TrainParticle.test.ts
+    ├── canvas/
+    │   ├── animation/TrainAnimator.test.ts
+    │   ├── interactions/trainClick.test.ts
+    │   └── objects/
+    │       ├── CongestionHeatmap.test.ts
+    │       ├── StationLabel.test.ts
+    │       ├── StationNode.test.ts
+    │       ├── TrainParticle.test.ts
+    │       └── TrainTrail.test.ts
+    ├── fixtures/                              # 공공 API 응답 픽스처 데이터
+    │   ├── api-responses-3min.json
+    │   └── api-responses-5min.json
     ├── hooks/useKeyboardShortcuts.test.ts
-    ├── services/trainApi.test.ts
-    ├── stores/useTrainStore.test.ts
-    └── utils/trainInterpolation.test.ts
+    ├── services/
+    │   ├── trainApi.test.ts
+    │   └── trainSimulator.test.ts
+    ├── stores/
+    │   ├── useMapStore.test.ts
+    │   ├── usePerfStore.test.ts
+    │   ├── useRouteStore.test.ts
+    │   ├── useStationStore.test.ts
+    │   └── useTrainStore.test.ts
+    └── utils/
+        ├── helpers/
+        │   └── replayFixture.ts               # 픽스처 재생 테스트 헬퍼
+        ├── coordTransform.test.ts
+        ├── directionReversal.test.ts          # 방향 역전 진단 테스트
+        ├── easing.test.ts
+        ├── operatingHours.test.ts
+        ├── pathFinder.test.ts
+        ├── stationNameResolver.test.ts
+        ├── trainFlickerDiagnostics.test.ts    # 열차 깜빡임 진단 테스트
+        ├── trainInterpolation.test.ts
+        ├── trainMovementDiagnostics.test.ts   # 열차 이동 진단 테스트
+        └── transferStation.test.ts
 ```
 
 ### 파일 네이밍
@@ -194,6 +223,33 @@ it("5초 후에 자동으로 알림을 닫는다", () => {
   // ...
 });
 ```
+
+## 픽스처 및 헬퍼 파일
+
+### 픽스처 데이터 (`tests/fixtures/`)
+
+실제 공공 API 응답을 기록한 JSON 파일이다. 3분 및 5분 간격으로 수집한 열차 위치 데이터를 담고 있으며, `scripts/collectApiData.ts`로 생성한다.
+
+| 파일 | 설명 |
+|------|------|
+| `api-responses-3min.json` | 3분 간격 API 응답 연속 기록 |
+| `api-responses-5min.json` | 5분 간격 API 응답 연속 기록 |
+
+### 테스트 헬퍼 (`tests/utils/helpers/`)
+
+| 파일 | 설명 |
+|------|------|
+| `replayFixture.ts` | 픽스처 데이터를 시간 순서대로 재생하는 헬퍼 |
+
+### 진단 테스트 파일
+
+실시간 데이터 재생 기반의 진단 테스트이다. 특정 기능의 정확성보다 회귀 현상 감지에 초점을 맞춘다.
+
+| 파일 | 설명 |
+|------|------|
+| `directionReversal.test.ts` | 열차 방향 역전 감지 진단 |
+| `trainFlickerDiagnostics.test.ts` | 열차 깜빡임(flickering) 진단 |
+| `trainMovementDiagnostics.test.ts` | 열차 이동 경로 이상 진단 |
 
 ## 공공 API 모킹 전략
 

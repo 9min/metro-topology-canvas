@@ -113,6 +113,7 @@ npm run dev
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "biome check --write .",
+    "lint:check": "biome check .",
     "test": "vitest",
     "test:coverage": "vitest run --coverage"
   }
