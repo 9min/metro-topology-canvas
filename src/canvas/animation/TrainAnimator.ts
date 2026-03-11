@@ -87,7 +87,11 @@ function updateExistingTrain(
 }
 
 /** 신규 열차의 애니메이션 상태를 생성한다 */
-function createNewTrainState(train: InterpolatedTrain, now: number, continuousMode = false): AnimatedTrainState {
+function createNewTrainState(
+	train: InterpolatedTrain,
+	now: number,
+	continuousMode = false,
+): AnimatedTrainState {
 	// 시뮬레이션: train.x/y = 이미 보간된 실제 위치
 	// 실시간: train.stationX/Y = 역 물리 좌표 (라인 이탈 방지)
 	const initX = continuousMode ? train.x : train.stationX;
