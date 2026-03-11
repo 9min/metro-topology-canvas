@@ -21,8 +21,7 @@ function computeDirectionAngle(
 	const adj = adjacencyMap.get(train.stationId);
 	if (adj === undefined) return 0;
 
-	const nextStationId =
-		train.direction === "상행" ? adj.prevs[0] : adj.nexts[0];
+	const nextStationId = train.direction === "상행" ? adj.prevs[0] : adj.nexts[0];
 	if (nextStationId === undefined) return 0;
 
 	const nextCoord = stationScreenMap.get(nextStationId);

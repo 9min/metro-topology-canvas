@@ -23,6 +23,24 @@ export function buildStationGraph(links: StationLink[]): StationGraph {
 	return graph;
 }
 
+/** 호선별로 분리된 그래프 맵을 구축한다. 열차 경로 탐색 시 다른 호선 경유를 방지한다. */
+export function buildLineGraphMap(links: StationLink[]): Map<number, StationGraph> {
+	const lineMap = new Map<number, StationLink[]>();
+	for (const link of links) {
+		const arr = lineMap.get(link.line);
+		if (arr !== undefined) {
+			arr.push(link);
+		} else {
+			lineMap.set(link.line, [link]);
+		}
+	}
+	const result = new Map<number, StationGraph>();
+	for (const [line, lineLinks] of lineMap) {
+		result.set(line, buildStationGraph(lineLinks));
+	}
+	return result;
+}
+
 /** parent 맵을 역추적하여 fromId→toId 경로를 반환한다 */
 function reconstructPath(parent: Map<string, string>, fromId: string, toId: string): string[] {
 	const path: string[] = [toId];

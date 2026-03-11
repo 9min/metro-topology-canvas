@@ -31,13 +31,13 @@ export const LINE_WIDTH = 2.6;
 export const TRAIN_PARTICLE_RADIUS = 3;
 
 /** SMSS 폴링 주기 (ms) — 10초 (1~8호선, 한도 없음) */
-export const SMSS_POLLING_INTERVAL_MS = 10_000;
+export const SMSS_POLLING_INTERVAL_MS = 5_000;
 
 /** 서울열린데이터광장 API 폴링 주기 (ms) — 30초 (9호선, 일일 한도 있음) */
 export const API_POLLING_INTERVAL_MS = 30_000;
 
-/** 열차 애니메이션 지속 시간 (ms) — SMSS 주기에 맞춰 연속 이동처럼 보이게 한다 */
-export const TRAIN_ANIMATION_DURATION_MS = SMSS_POLLING_INTERVAL_MS;
+/** 열차 애니메이션 지속 시간 (ms) — 역 변경 시 1분 등속 직선 이동 */
+export const TRAIN_ANIMATION_DURATION_MS = 60_000;
 
 /** 신규 열차 페이드인 시간 (ms) */
 export const TRAIN_FADEIN_MS = 500;
@@ -106,5 +106,11 @@ export const SIM_DWELL_TICKS = 1;
 /** 시뮬레이션: 종점 정차 틱 수 (2틱 = 6초, 방향 전환 대기) */
 export const SIM_TERMINAL_DWELL_TICKS = 2;
 
-/** 열차 애니메이션 최대 허용 거리 (px) — 초과 시 즉시 텔레포트 */
-export const MAX_TRAIN_ANIM_DIST = 500;
+/** 열차 grace period: 폴링에서 누락되어도 유지할 폴 횟수 */
+export const TRAIN_GRACE_POLL_COUNT = 2;
+
+/** 열차 페이드아웃 지속 시간 (ms) */
+export const TRAIN_FADEOUT_MS = 500;
+
+/** 모드 전환 시 로딩 오버레이 표시 시간 (ms) */
+export const MODE_LOADING_MS = 3_000;
