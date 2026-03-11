@@ -40,7 +40,7 @@ export function StationPanel() {
 			{/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: 백드롭은 마우스 전용 */}
 			<div className="pointer-events-auto absolute inset-0" onClick={() => selectStation(null)} />
 			<div
-				className={`pointer-events-auto absolute right-4 bottom-4 min-w-[240px] ${OVERLAY_PANEL} p-4`}
+				className={`pointer-events-auto absolute right-2 bottom-2 left-2 sm:right-4 sm:bottom-4 sm:left-auto sm:min-w-[240px] ${OVERLAY_PANEL} p-4`}
 			>
 				<div className="mb-3 flex items-start justify-between gap-2">
 					<h2 className="text-lg font-bold text-white">{selectedStation.name}</h2>

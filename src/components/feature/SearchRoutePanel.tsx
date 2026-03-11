@@ -49,7 +49,7 @@ function RouteDropdown({
 
 	return (
 		<ul
-			className={`absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-y-auto ${OVERLAY_DROPDOWN} py-1`}
+			className={`absolute bottom-full right-0 left-0 z-50 mb-1 max-h-48 overflow-y-auto sm:top-full sm:bottom-auto sm:mt-1 sm:mb-0 ${OVERLAY_DROPDOWN} py-1`}
 		>
 			{filtered.map((station, idx) => {
 				const transferLines = transferMap.get(station.name);
@@ -286,7 +286,9 @@ export function SearchRoutePanel({ transferMap, onStationSelect }: SearchRoutePa
 						<line x1="21" y1="21" x2="16.65" y2="16.65" />
 					</svg>
 					검색
-					<kbd className="ml-0.5 rounded bg-white/10 px-1.5 py-0.5 text-xs text-gray-500">/</kbd>
+					<kbd className="ml-0.5 hidden rounded bg-white/10 px-1.5 py-0.5 text-xs text-gray-500 sm:inline">
+						/
+					</kbd>
 				</button>
 				<button
 					type="button"
@@ -310,14 +312,16 @@ export function SearchRoutePanel({ transferMap, onStationSelect }: SearchRoutePa
 						<polyline points="9 22 9 12 15 12 15 22" />
 					</svg>
 					경로
-					<kbd className="ml-0.5 rounded bg-white/10 px-1.5 py-0.5 text-xs text-gray-500">R</kbd>
+					<kbd className="ml-0.5 hidden rounded bg-white/10 px-1.5 py-0.5 text-xs text-gray-500 sm:inline">
+						R
+					</kbd>
 				</button>
 			</div>
 		);
 	}
 
 	return (
-		<div className={`pointer-events-auto w-72 ${OVERLAY_PANEL} p-0`}>
+		<div className={`pointer-events-auto w-[calc(100vw-2rem)] sm:w-72 ${OVERLAY_PANEL} p-0`}>
 			{/* 탭 헤더 */}
 			<div className="flex items-center border-b border-white/10">
 				<button
@@ -419,7 +423,7 @@ export function SearchRoutePanel({ transferMap, onStationSelect }: SearchRoutePa
 
 					{searchResults.length > 0 && (
 						<ul
-							className={`absolute right-3 left-3 z-50 mt-1 max-h-72 overflow-y-auto ${OVERLAY_DROPDOWN} py-1`}
+							className={`absolute right-3 bottom-full left-3 z-50 mb-1 max-h-72 overflow-y-auto sm:top-full sm:bottom-auto sm:mt-1 sm:mb-0 ${OVERLAY_DROPDOWN} py-1`}
 						>
 							{searchResults.map((station, idx) => {
 								const transferLines = transferMap.get(station.name);
@@ -452,7 +456,7 @@ export function SearchRoutePanel({ transferMap, onStationSelect }: SearchRoutePa
 
 					{searchQuery.trim() !== "" && searchResults.length === 0 && (
 						<div
-							className={`absolute right-3 left-3 z-50 mt-1 ${OVERLAY_DROPDOWN} px-3 py-3 text-center text-sm text-gray-500`}
+							className={`absolute right-3 bottom-full left-3 z-50 mb-1 sm:top-full sm:bottom-auto sm:mt-1 sm:mb-0 ${OVERLAY_DROPDOWN} px-3 py-3 text-center text-sm text-gray-500`}
 						>
 							검색 결과 없음
 						</div>

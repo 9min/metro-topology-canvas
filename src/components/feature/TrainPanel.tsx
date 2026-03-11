@@ -25,7 +25,7 @@ export function TrainPanel() {
 			{/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useKeyWithClickEvents: 백드롭은 마우스 전용 */}
 			<div className="pointer-events-auto absolute inset-0" onClick={() => selectTrain(null)} />
 			<div
-				className={`pointer-events-auto absolute left-4 bottom-4 min-w-[240px] ${OVERLAY_PANEL} p-4`}
+				className={`pointer-events-auto absolute left-2 bottom-2 right-2 sm:left-4 sm:bottom-4 sm:right-auto sm:min-w-[240px] ${OVERLAY_PANEL} p-4`}
 			>
 				<div className="mb-3 flex items-start justify-between gap-2">
 					<h2 className="text-lg font-bold text-white">{train.trainNo}</h2>

@@ -41,8 +41,10 @@ export function LineFilter() {
 	}, [allActive, setAllLinesActive, baseEnabledLines]);
 
 	return (
-		<div className="pointer-events-auto absolute left-1/2 top-4 flex -translate-x-1/2 flex-col items-center gap-2">
-			<div className={`flex items-center gap-1.5 ${OVERLAY_TOOLBAR} px-4 py-2`}>
+		<div className="pointer-events-auto absolute left-1/2 top-12 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 flex-col items-center gap-2 sm:top-4">
+			<div
+				className={`flex items-center gap-1 overflow-x-auto sm:gap-1.5 ${OVERLAY_TOOLBAR} px-2 py-2 sm:px-4`}
+			>
 				{LINES.map((line) => {
 					const colorHex = LINE_COLORS[line] ?? "#ffffff";
 					const isActive = activeLines.has(line);
@@ -53,7 +55,7 @@ export function LineFilter() {
 							type="button"
 							onClick={() => toggleLine(line, baseEnabledLines)}
 							title={`${line}호선${trainCounts !== null ? `: ${count}대` : ""}`}
-							className="relative h-8 w-8 cursor-pointer rounded-full text-sm font-bold text-white transition-opacity"
+							className="relative h-6 w-6 shrink-0 cursor-pointer rounded-full text-xs font-bold text-white transition-opacity sm:h-8 sm:w-8 sm:text-sm"
 							style={{
 								backgroundColor: colorHex,
 								opacity: isActive ? 1 : 0.25,
@@ -64,11 +66,11 @@ export function LineFilter() {
 					);
 				})}
 
-				<div className="mx-1.5 h-5 w-px bg-white/30" />
+				<div className="mx-1 h-5 w-px shrink-0 bg-white/30 sm:mx-1.5" />
 				<button
 					type="button"
 					onClick={handleToggleAll}
-					className="w-18 cursor-pointer rounded px-2 py-0.5 text-center text-sm text-white/70 transition-colors hover:text-white"
+					className="w-12 shrink-0 cursor-pointer whitespace-nowrap rounded px-1 py-0.5 text-center text-xs text-white/70 transition-colors hover:text-white sm:w-18 sm:px-2"
 				>
 					{allActive ? "전체해제" : "전체"}
 				</button>

@@ -20,7 +20,28 @@ export function setupZoomPan({ viewport, canvas }: ZoomPanOptions): () => void {
 	let viewportStartX = 0;
 	let viewportStartY = 0;
 
+	// 핀치 줌용 활성 포인터 추적
+	const activePointers = new Map<number, { x: number; y: number }>();
+	let prevPinchDist = 0;
+
 	const { setScale, setOffset, setIsDragging } = useMapStore.getState();
+
+	/** 두 포인터 거리를 계산한다 */
+	function getPinchDist(a: { x: number; y: number }, b: { x: number; y: number }): number {
+		return Math.hypot(b.x - a.x, b.y - a.y);
+	}
+
+	/** 피벗 기준으로 viewport 스케일을 적용한다 */
+	function applyScale(newScale: number, pivotX: number, pivotY: number): void {
+		const oldScale = viewport.scale.x;
+		const worldX = (pivotX - viewport.x) / oldScale;
+		const worldY = (pivotY - viewport.y) / oldScale;
+		viewport.scale.set(newScale);
+		viewport.x = pivotX - worldX * newScale;
+		viewport.y = pivotY - worldY * newScale;
+		setScale(newScale);
+		setOffset(viewport.x, viewport.y);
+	}
 
 	const onWheel = (event: WheelEvent): void => {
 		event.preventDefault();
@@ -32,43 +53,107 @@ export function setupZoomPan({ viewport, canvas }: ZoomPanOptions): () => void {
 		const oldScale = viewport.scale.x;
 		const delta = event.deltaY * ZOOM_SPEED;
 		const newScale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, oldScale * (1 - delta)));
-
-		// 마우스 포인터 기준으로 pivot 보정
-		const worldX = (mouseX - viewport.x) / oldScale;
-		const worldY = (mouseY - viewport.y) / oldScale;
-
-		viewport.scale.set(newScale);
-		viewport.x = mouseX - worldX * newScale;
-		viewport.y = mouseY - worldY * newScale;
-
-		setScale(newScale);
-		setOffset(viewport.x, viewport.y);
+		applyScale(newScale, mouseX, mouseY);
 	};
 
 	const onPointerDown = (event: PointerEvent): void => {
-		isDragging = true;
-		dragStartX = event.clientX;
-		dragStartY = event.clientY;
-		viewportStartX = viewport.x;
-		viewportStartY = viewport.y;
-		canvas.setPointerCapture(event.pointerId);
-		setIsDragging(true);
+		activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+		if (activePointers.size === 1) {
+			// 단일 터치: 드래그 시작
+			isDragging = true;
+			dragStartX = event.clientX;
+			dragStartY = event.clientY;
+			viewportStartX = viewport.x;
+			viewportStartY = viewport.y;
+			canvas.setPointerCapture(event.pointerId);
+			setIsDragging(true);
+		} else if (activePointers.size === 2) {
+			// 두 번째 터치 진입 시 드래그 중단하고 핀치 시작
+			isDragging = false;
+			setIsDragging(false);
+			const pts = [...activePointers.values()];
+			if (pts[0] !== undefined && pts[1] !== undefined) {
+				prevPinchDist = getPinchDist(pts[0], pts[1]);
+			}
+		}
 	};
 
 	const onPointerMove = (event: PointerEvent): void => {
-		if (!isDragging) return;
-		const dx = event.clientX - dragStartX;
-		const dy = event.clientY - dragStartY;
-		viewport.x = viewportStartX + dx;
-		viewport.y = viewportStartY + dy;
-		setOffset(viewport.x, viewport.y);
+		if (!activePointers.has(event.pointerId)) return;
+		activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+		if (activePointers.size === 2) {
+			// 핀치 줌 처리
+			const pts = [...activePointers.values()];
+			const p1 = pts[0];
+			const p2 = pts[1];
+			if (p1 === undefined || p2 === undefined) return;
+			const dist = getPinchDist(p1, p2);
+			if (prevPinchDist > 0) {
+				const ratio = dist / prevPinchDist;
+				const oldScale = viewport.scale.x;
+				const newScale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, oldScale * ratio));
+				// 핀치 중점을 피벗으로 사용
+				const rect = canvas.getBoundingClientRect();
+				const pivotX = (p1.x + p2.x) / 2 - rect.left;
+				const pivotY = (p1.y + p2.y) / 2 - rect.top;
+				applyScale(newScale, pivotX, pivotY);
+			}
+			prevPinchDist = dist;
+		} else if (isDragging) {
+			// 단일 터치 드래그
+			const dx = event.clientX - dragStartX;
+			const dy = event.clientY - dragStartY;
+			viewport.x = viewportStartX + dx;
+			viewport.y = viewportStartY + dy;
+			setOffset(viewport.x, viewport.y);
+		}
 	};
 
+	/** 포인터가 모두 해제된 경우 드래그 상태를 정리한다 */
+	function handleAllPointersUp(pointerId: number): void {
+		if (isDragging) {
+			isDragging = false;
+			setIsDragging(false);
+		}
+		try {
+			canvas.releasePointerCapture(pointerId);
+		} catch {
+			// 이미 해제된 경우 무시
+		}
+	}
+
+	/** 핀치에서 단일 터치로 전환 시 드래그를 재시작한다 */
+	function handlePinchToSingleTouch(): void {
+		const firstEntry = [...activePointers.entries()][0];
+		if (firstEntry === undefined) return;
+		const [remainingId, remainingPos] = firstEntry;
+		isDragging = true;
+		dragStartX = remainingPos.x;
+		dragStartY = remainingPos.y;
+		viewportStartX = viewport.x;
+		viewportStartY = viewport.y;
+		try {
+			canvas.setPointerCapture(remainingId);
+		} catch {
+			// 캡처 실패 시 무시
+		}
+		setIsDragging(true);
+	}
+
 	const onPointerUp = (event: PointerEvent): void => {
-		if (!isDragging) return;
-		isDragging = false;
-		canvas.releasePointerCapture(event.pointerId);
-		setIsDragging(false);
+		activePointers.delete(event.pointerId);
+
+		if (activePointers.size < 2) {
+			prevPinchDist = 0;
+		}
+
+		if (activePointers.size === 0) {
+			handleAllPointersUp(event.pointerId);
+		} else if (activePointers.size === 1) {
+			handlePinchToSingleTouch();
+		}
 	};
 
 	canvas.addEventListener("wheel", onWheel, { passive: false });

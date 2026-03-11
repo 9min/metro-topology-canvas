@@ -14,8 +14,9 @@ export function ToolBar() {
 	const togglePerf = usePerfStore((s) => s.toggleVisible);
 
 	return (
+		// 모바일에서는 MobileTopBar가 담당하므로 숨김
 		<div
-			className={`pointer-events-auto absolute top-4 right-4 flex items-center gap-1.5 ${OVERLAY_TOOLBAR} px-3 py-2`}
+			className={`pointer-events-auto absolute top-4 right-4 hidden items-center gap-1.5 sm:flex ${OVERLAY_TOOLBAR} px-3 py-2`}
 		>
 			<button
 				type="button"
@@ -25,7 +26,8 @@ export function ToolBar() {
 					trainLabelsEnabled ? "bg-indigo-500/80 text-white" : "text-white/50 hover:text-white"
 				}`}
 			>
-				열차번호
+				<span className="sm:hidden">번호</span>
+				<span className="hidden sm:inline">열차번호</span>
 			</button>
 			<button
 				type="button"
@@ -35,7 +37,8 @@ export function ToolBar() {
 					heatmapEnabled ? "bg-orange-500/80 text-white" : "text-white/50 hover:text-white"
 				}`}
 			>
-				히트맵
+				<span className="sm:hidden">히트</span>
+				<span className="hidden sm:inline">히트맵</span>
 			</button>
 			<button
 				type="button"

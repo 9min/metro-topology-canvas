@@ -34,22 +34,24 @@ export function ModeSwitch() {
 			<button
 				type="button"
 				onClick={() => handleSwitch("simulation")}
-				className={`flex-1 cursor-pointer rounded-md px-3 py-1.5 text-center text-xs font-semibold transition-all ${
+				className={`flex-1 cursor-pointer rounded-md px-2 py-1.5 text-center text-xs font-semibold transition-all sm:px-3 ${
 					mode === "simulation"
 						? "bg-blue-600 text-white shadow-sm"
 						: "text-gray-400 hover:text-white"
 				}`}
 			>
-				시뮬레이션
+				<span className="sm:hidden">시뮬</span>
+				<span className="hidden sm:inline">시뮬레이션</span>
 			</button>
 			<button
 				type="button"
 				onClick={() => handleSwitch("live")}
-				className={`flex-1 cursor-pointer rounded-md px-3 py-1.5 text-center text-xs font-semibold transition-all ${
+				className={`flex-1 cursor-pointer rounded-md px-2 py-1.5 text-center text-xs font-semibold transition-all sm:px-3 ${
 					mode === "live" ? "bg-green-600 text-white shadow-sm" : "text-gray-400 hover:text-white"
 				}`}
 			>
-				실시간 운행
+				<span className="sm:hidden">실시간</span>
+				<span className="hidden sm:inline">실시간 운행</span>
 			</button>
 		</div>
 	);

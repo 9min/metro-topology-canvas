@@ -15,7 +15,8 @@ function formatElapsed(lastFetchedAt: string | null, now: number): string {
 
 /**
  * 좌상단 운행 현황 HUD 컴포넌트.
- * 운행 열차 수 / 마지막 업데이트 시각 / 폴링 인디케이터 / 에러 표시
+ * 모바일: ModeSwitch 숨김 + 카드만 LineFilter 아래에 표시
+ * 데스크톱: ModeSwitch + 카드 flex-col
  */
 export function HUD() {
 	const mode = useSimulationStore((s) => s.mode);
@@ -37,15 +38,19 @@ export function HUD() {
 	}, []);
 
 	return (
-		<div className="pointer-events-none absolute top-4 left-4 flex flex-col gap-2">
-			{/* 모드 전환 */}
-			<ModeSwitch />
+		// 모바일: top-[5.5rem] = MobileTopBar(top-2 ~36px) + LineFilter(top-12 ~40px) 아래
+		// 데스크톱: top-4 (기존 위치)
+		<div className="pointer-events-none absolute top-[5.5rem] left-2 flex flex-col gap-2 sm:top-4 sm:left-4">
+			{/* 모드 전환 — 모바일에서는 MobileTopBar가 담당하므로 숨김 */}
+			<div className="hidden sm:block">
+				<ModeSwitch />
+			</div>
 
 			{/* 운행 현황 카드 */}
-			<div className={`w-48 ${OVERLAY_PANEL} px-4 py-3`}>
-				<div className="mb-2 flex items-center gap-2">
+			<div className={`${OVERLAY_PANEL} px-3 py-2 sm:w-48 sm:px-4 sm:py-3`}>
+				<div className="mb-1.5 flex items-center gap-2 sm:mb-2">
 					{!isSimulation && isPollingActive ? (
-						<span className="inline-flex items-center gap-1 rounded bg-red-600 px-1.5 py-0.5 animate-pulse">
+						<span className="inline-flex animate-pulse items-center gap-1 rounded bg-red-600 px-1.5 py-0.5">
 							<span className="inline-block h-1.5 w-1.5 rounded-full bg-white" />
 							<span className="text-xs font-bold leading-none text-white">LIVE</span>
 						</span>
@@ -60,17 +65,21 @@ export function HUD() {
 						{modeLabel}
 					</span>
 				</div>
-				<p className="text-2xl font-bold text-white">
+				<p className="text-xl font-bold text-white sm:text-2xl">
 					{interpolatedTrains.length}
 					<span className="ml-1 text-sm font-normal text-gray-400">대</span>
 				</p>
-				<p className="mt-1 text-xs text-gray-500">{formatElapsed(lastFetchedAt, now)} 업데이트</p>
-				{!isSimulation && <p className="mt-1 text-xs text-gray-600">서울시 공공데이터 API</p>}
+				<p className="mt-1 hidden text-xs text-gray-500 sm:block">
+					{formatElapsed(lastFetchedAt, now)} 업데이트
+				</p>
+				{!isSimulation && (
+					<p className="mt-1 hidden text-xs text-gray-600 sm:block">서울시 공공데이터 API</p>
+				)}
 			</div>
 
 			{/* 에러 배너 */}
 			{fetchError !== null && (
-				<div className="w-48 rounded-xl border border-red-500/30 bg-red-900/60 px-4 py-2 shadow-xl backdrop-blur-md">
+				<div className="rounded-xl border border-red-500/30 bg-red-900/60 px-3 py-2 shadow-xl backdrop-blur-md sm:w-48 sm:px-4">
 					<p className="text-xs text-red-300">API 오류: {fetchError}</p>
 				</div>
 			)}

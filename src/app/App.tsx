@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { HUD } from "@/components/feature/HUD";
 import { LineFilter } from "@/components/feature/LineFilter";
 import { MapCanvas } from "@/components/feature/MapCanvas";
+import { MobileTopBar } from "@/components/feature/MobileTopBar";
 import { SearchRoutePanel } from "@/components/feature/SearchRoutePanel";
 import { StationPanel } from "@/components/feature/StationPanel";
 import { ToolBar } from "@/components/feature/ToolBar";
@@ -37,12 +38,23 @@ export function App() {
 			canvas={<MapCanvas />}
 			panel={
 				<>
+					{/* 모바일 전용: ModeSwitch + ToolBar 통합 상단 바 */}
+					<MobileTopBar />
+
+					{/* HUD: 모바일에서 ModeSwitch 숨김 + LineFilter 아래 위치, 데스크톱 기존 유지 */}
 					<HUD />
+
+					{/* ToolBar: 모바일 숨김 (MobileTopBar가 대체), 데스크톱만 표시 */}
 					<ToolBar />
-					<div className="pointer-events-none absolute top-52 left-4">
+
+					{/* LineFilter: 모바일 top-12 (통합 바 아래), 데스크톱 top-4 */}
+					<LineFilter />
+
+					{/* SearchRoutePanel: 모바일 하단 고정, 데스크톱 좌측 중단 */}
+					<div className="pointer-events-none absolute bottom-4 left-4 sm:bottom-auto sm:top-52">
 						<SearchRoutePanel transferMap={transferMap} onStationSelect={handleStationSelect} />
 					</div>
-					<LineFilter />
+
 					{!isRouteMode && <StationPanel />}
 					{!isRouteMode && <TrainPanel />}
 				</>
