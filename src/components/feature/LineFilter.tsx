@@ -42,7 +42,9 @@ export function LineFilter() {
 
 	return (
 		<div className="pointer-events-auto absolute left-1/2 top-12 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 flex-col items-center gap-2 sm:top-4">
-			<div className={`flex items-center gap-1 overflow-x-auto sm:gap-1.5 ${OVERLAY_TOOLBAR} px-2 py-2 sm:px-4`}>
+			<div
+				className={`flex items-center gap-1 overflow-x-auto sm:gap-1.5 ${OVERLAY_TOOLBAR} px-2 py-2 sm:px-4`}
+			>
 				{LINES.map((line) => {
 					const colorHex = LINE_COLORS[line] ?? "#ffffff";
 					const isActive = activeLines.has(line);

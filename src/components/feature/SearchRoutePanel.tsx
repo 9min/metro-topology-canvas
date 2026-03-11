@@ -286,7 +286,9 @@ export function SearchRoutePanel({ transferMap, onStationSelect }: SearchRoutePa
 						<line x1="21" y1="21" x2="16.65" y2="16.65" />
 					</svg>
 					검색
-					<kbd className="ml-0.5 hidden rounded bg-white/10 px-1.5 py-0.5 text-xs text-gray-500 sm:inline">/</kbd>
+					<kbd className="ml-0.5 hidden rounded bg-white/10 px-1.5 py-0.5 text-xs text-gray-500 sm:inline">
+						/
+					</kbd>
 				</button>
 				<button
 					type="button"
@@ -310,7 +312,9 @@ export function SearchRoutePanel({ transferMap, onStationSelect }: SearchRoutePa
 						<polyline points="9 22 9 12 15 12 15 22" />
 					</svg>
 					경로
-					<kbd className="ml-0.5 hidden rounded bg-white/10 px-1.5 py-0.5 text-xs text-gray-500 sm:inline">R</kbd>
+					<kbd className="ml-0.5 hidden rounded bg-white/10 px-1.5 py-0.5 text-xs text-gray-500 sm:inline">
+						R
+					</kbd>
 				</button>
 			</div>
 		);

@@ -111,6 +111,37 @@ export function setupZoomPan({ viewport, canvas }: ZoomPanOptions): () => void {
 		}
 	};
 
+	/** 포인터가 모두 해제된 경우 드래그 상태를 정리한다 */
+	function handleAllPointersUp(pointerId: number): void {
+		if (isDragging) {
+			isDragging = false;
+			setIsDragging(false);
+		}
+		try {
+			canvas.releasePointerCapture(pointerId);
+		} catch {
+			// 이미 해제된 경우 무시
+		}
+	}
+
+	/** 핀치에서 단일 터치로 전환 시 드래그를 재시작한다 */
+	function handlePinchToSingleTouch(): void {
+		const firstEntry = [...activePointers.entries()][0];
+		if (firstEntry === undefined) return;
+		const [remainingId, remainingPos] = firstEntry;
+		isDragging = true;
+		dragStartX = remainingPos.x;
+		dragStartY = remainingPos.y;
+		viewportStartX = viewport.x;
+		viewportStartY = viewport.y;
+		try {
+			canvas.setPointerCapture(remainingId);
+		} catch {
+			// 캡처 실패 시 무시
+		}
+		setIsDragging(true);
+	}
+
 	const onPointerUp = (event: PointerEvent): void => {
 		activePointers.delete(event.pointerId);
 
@@ -119,31 +150,9 @@ export function setupZoomPan({ viewport, canvas }: ZoomPanOptions): () => void {
 		}
 
 		if (activePointers.size === 0) {
-			if (isDragging) {
-				isDragging = false;
-				setIsDragging(false);
-			}
-			try {
-				canvas.releasePointerCapture(event.pointerId);
-			} catch {
-				// 이미 해제된 경우 무시
-			}
+			handleAllPointersUp(event.pointerId);
 		} else if (activePointers.size === 1) {
-			// 핀치에서 단일 터치로 전환: 드래그 재시작
-			const firstEntry = [...activePointers.entries()][0];
-			if (firstEntry === undefined) return;
-			const [remainingId, remainingPos] = firstEntry;
-			isDragging = true;
-			dragStartX = remainingPos.x;
-			dragStartY = remainingPos.y;
-			viewportStartX = viewport.x;
-			viewportStartY = viewport.y;
-			try {
-				canvas.setPointerCapture(remainingId);
-			} catch {
-				// 캡처 실패 시 무시
-			}
-			setIsDragging(true);
+			handlePinchToSingleTouch();
 		}
 	};
 
