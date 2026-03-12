@@ -3,6 +3,7 @@ import { ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED } from "@/constants/mapConfig";
 import { useMapStore } from "@/stores/useMapStore";
 import type { ScreenCoord } from "@/types/map";
 import { easeInOutCubic } from "@/utils/easing";
+import { resetPanGuard, updatePanGuard } from "./panGuard";
 
 interface ZoomPanOptions {
 	viewport: Container;
@@ -64,6 +65,7 @@ export function setupZoomPan({ viewport, canvas }: ZoomPanOptions): () => void {
 			isDragging = true;
 			dragStartX = event.clientX;
 			dragStartY = event.clientY;
+			resetPanGuard(event.clientX, event.clientY);
 			viewportStartX = viewport.x;
 			viewportStartY = viewport.y;
 			canvas.setPointerCapture(event.pointerId);
@@ -108,6 +110,7 @@ export function setupZoomPan({ viewport, canvas }: ZoomPanOptions): () => void {
 			viewport.x = viewportStartX + dx;
 			viewport.y = viewportStartY + dy;
 			setOffset(viewport.x, viewport.y);
+			updatePanGuard(event.clientX, event.clientY);
 		}
 	};
 
