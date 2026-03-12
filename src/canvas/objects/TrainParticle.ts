@@ -37,7 +37,6 @@ function drawTrainBody(gfx: Graphics, hex: number): void {
 		.stroke({ width: 1.2, color: darkenColor(hex, 0.6) });
 }
 
-
 /** 단일 열차 캡슐 Graphics를 생성하고 호선 색상으로 그린다 */
 export function createTrainGraphics(line: number): Graphics | null {
 	const colorStr = LINE_COLORS[line];
@@ -360,6 +359,33 @@ function renderUnexpectedMarkers(
 	}
 }
 
+/**
+ * 페이드아웃·페이드인 효과를 적용하고 최종 alpha를 반환한다.
+ * 틴트도 이 함수에서 처리한다.
+ */
+function applyFadeEffect(
+	gfx: Graphics,
+	train: AnimatedTrainState,
+	baseAlpha: number,
+	now: number,
+): number {
+	if (train.fadeOutStartedAt !== undefined) {
+		const fadeElapsed = now - train.fadeOutStartedAt;
+		const fadeOutProgress = Math.min(fadeElapsed / TRAIN_FADEOUT_MS, 1);
+		if (gfx.tint !== 0x888888) gfx.tint = 0x888888;
+		return baseAlpha * (1 - fadeOutProgress);
+	}
+	if (gfx.tint !== 0xffffff) gfx.tint = 0xffffff;
+	const age = now - train.createdAt;
+	if (age < TRAIN_FADEIN_MS) {
+		const fadeProgress = age / TRAIN_FADEIN_MS;
+		gfx.scale.set(0.5 + 0.5 * fadeProgress);
+		return baseAlpha * fadeProgress;
+	}
+	if (gfx.scale.x !== 1) gfx.scale.set(1);
+	return baseAlpha;
+}
+
 export function drawAnimatedTrains(
 	trainsLayer: Container,
 	animatedTrains: AnimatedTrainState[],
@@ -382,32 +408,13 @@ export function drawAnimatedTrains(
 
 		updateTrainRotation(gfx, train, isNew);
 
-		let alpha = computeTrainAlpha(train.toStationId, selectedStationId, train.line, activeLines);
-
-		// 페이드아웃 처리
-		if (train.fadeOutStartedAt !== undefined) {
-			const fadeElapsed = now - train.fadeOutStartedAt;
-			const fadeOutProgress = Math.min(fadeElapsed / TRAIN_FADEOUT_MS, 1);
-			alpha *= 1 - fadeOutProgress;
-			// 회색 틴트 (geometry 미변경 → 배칭 유지, 렌더링 아티팩트 없음)
-			if (gfx.tint !== 0x888888) gfx.tint = 0x888888;
-		} else {
-			// 복귀 시 틴트 초기화
-			if (gfx.tint !== 0xffffff) gfx.tint = 0xffffff;
-			// 신규 열차 페이드인 (500ms)
-			const age = now - train.createdAt;
-			if (age < TRAIN_FADEIN_MS) {
-				const fadeProgress = age / TRAIN_FADEIN_MS;
-				alpha *= fadeProgress;
-				// 살짝 커지는 스케일 효과
-				const scale = 0.5 + 0.5 * fadeProgress;
-				gfx.scale.set(scale);
-			} else if (gfx.scale.x !== 1) {
-				gfx.scale.set(1);
-			}
-		}
-
-		gfx.alpha = alpha;
+		const baseAlpha = computeTrainAlpha(
+			train.toStationId,
+			selectedStationId,
+			train.line,
+			activeLines,
+		);
+		gfx.alpha = applyFadeEffect(gfx, train, baseAlpha, now);
 
 		updateHeadlightPulse(gfx);
 		updateMovingArrows(gfx, train, now);

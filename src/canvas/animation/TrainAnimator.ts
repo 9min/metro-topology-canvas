@@ -29,9 +29,9 @@ function advanceTrainState(state: AnimatedTrainState, delta: number): void {
 		state.fromX = state.toX;
 		state.fromY = state.toY;
 		state.toX = state.pendingToX;
-		state.toY = state.pendingToY!;
-		state.stationId = state.pendingStationId!;
-		state.toStationId = state.pendingToStationId!;
+		state.toY = state.pendingToY ?? state.toY;
+		state.stationId = state.pendingStationId ?? state.stationId;
+		state.toStationId = state.pendingToStationId ?? state.toStationId;
 		state.progress = 0;
 		state.isMoving = true;
 		state.trailDirty = true;
@@ -40,6 +40,80 @@ function advanceTrainState(state: AnimatedTrainState, delta: number): void {
 		state.pendingStationId = undefined;
 		state.pendingToStationId = undefined;
 	}
+}
+
+/** pending 필드를 모두 초기화한다 */
+function clearPending(state: AnimatedTrainState): void {
+	state.pendingToX = undefined;
+	state.pendingToY = undefined;
+	state.pendingStationId = undefined;
+	state.pendingToStationId = undefined;
+}
+
+/** 같은 구간 유지 시 출발 상태 동기화만 수행한다 */
+function applySegmentSame(existing: AnimatedTrainState, train: InterpolatedTrain): void {
+	if (train.status !== "출발") return;
+	existing.toX = train.nextX;
+	existing.toY = train.nextY;
+	existing.isMoving = true;
+}
+
+/** 다음 구간으로 진행(출발) 시 B역으로 즉시 스냅 후 C역으로 이동을 시작한다 */
+function applyAdvancedDepart(existing: AnimatedTrainState, train: InterpolatedTrain): void {
+	existing.stationId = train.stationId;
+	existing.toStationId = train.nextStationId;
+	existing.fromX = train.stationX;
+	existing.fromY = train.stationY;
+	existing.toX = train.nextX;
+	existing.toY = train.nextY;
+	existing.currentX = train.stationX;
+	existing.currentY = train.stationY;
+	existing.progress = 0;
+	existing.speedFactor = train.speedFactor ?? 1.0;
+	existing.isMoving = true;
+	existing.trailDirty = true;
+	clearPending(existing);
+}
+
+/** 다음 구간으로 진행(도착/진입) 시 역 좌표로 전진 스냅한다 */
+function applyAdvancedArrive(existing: AnimatedTrainState, train: InterpolatedTrain): void {
+	existing.stationId = train.stationId;
+	existing.toStationId = train.nextStationId;
+	existing.fromX = train.stationX;
+	existing.fromY = train.stationY;
+	existing.toX = train.stationX;
+	existing.toY = train.stationY;
+	existing.currentX = train.stationX;
+	existing.currentY = train.stationY;
+	existing.progress = 0;
+	existing.isMoving = false;
+	existing.trailDirty = true;
+	clearPending(existing);
+}
+
+/** 예상 밖 구간 변경(2+ 역 점프 등) 시 강제 스냅한다 */
+function applyUnexpectedSnap(
+	existing: AnimatedTrainState,
+	train: InterpolatedTrain,
+	isDepart: boolean,
+	now: number,
+): void {
+	existing.unexpectedSnapAt = now;
+	existing.unexpectedSnapX = existing.currentX;
+	existing.unexpectedSnapY = existing.currentY;
+	existing.stationId = train.stationId;
+	existing.toStationId = train.nextStationId;
+	existing.fromX = train.stationX;
+	existing.fromY = train.stationY;
+	existing.toX = isDepart ? train.nextX : train.stationX;
+	existing.toY = isDepart ? train.nextY : train.stationY;
+	existing.currentX = train.stationX;
+	existing.currentY = train.stationY;
+	existing.progress = 0;
+	existing.speedFactor = train.speedFactor ?? 1.0;
+	existing.isMoving = isDepart;
+	existing.trailDirty = true;
+	clearPending(existing);
 }
 
 /**
@@ -98,126 +172,62 @@ export class TrainAnimator {
 		this.markStaleForFadeOut(newKeys);
 	}
 
+	/** 신규 열차 상태를 생성하고 등록한다 */
+	private createTrain(train: InterpolatedTrain, now: number): void {
+		const isDepart = train.status === "출발";
+		const simP = isDepart ? (train.simProgress ?? 0) : 0;
+		const t = easeInOut(simP);
+		const initX = isDepart ? train.stationX + (train.nextX - train.stationX) * t : train.stationX;
+		const initY = isDepart ? train.stationY + (train.nextY - train.stationY) * t : train.stationY;
+		this.states.set(train.trainNo, {
+			trainNo: train.trainNo,
+			line: train.line,
+			direction: train.direction,
+			currentX: initX,
+			currentY: initY,
+			stationId: train.stationId,
+			toStationId: train.nextStationId,
+			fromX: train.stationX,
+			fromY: train.stationY,
+			toX: isDepart ? train.nextX : train.stationX,
+			toY: isDepart ? train.nextY : train.stationY,
+			progress: simP,
+			isMoving: isDepart,
+			trackAngle: train.trackAngle,
+			createdAt: now,
+			lastPollAt: now,
+			speedFactor: train.speedFactor ?? 1.0,
+		});
+	}
+
 	/** 단일 열차의 상태를 갱신하거나 신규 생성한다 */
 	private upsertTrain(train: InterpolatedTrain, now: number): void {
 		const existing = this.states.get(train.trainNo);
-
 		if (existing === undefined) {
-			// 신규 열차: simProgress 기반 초기 위치 설정 (시뮬레이션 텔레포트 방지)
-			const isDepart = train.status === "출발";
-			const simP = isDepart ? (train.simProgress ?? 0) : 0;
-			const t = easeInOut(simP);
-			const initX = isDepart ? train.stationX + (train.nextX - train.stationX) * t : train.stationX;
-			const initY = isDepart ? train.stationY + (train.nextY - train.stationY) * t : train.stationY;
-			this.states.set(train.trainNo, {
-				trainNo: train.trainNo,
-				line: train.line,
-				direction: train.direction,
-				currentX: initX,
-				currentY: initY,
-				stationId: train.stationId,
-				toStationId: train.nextStationId,
-				fromX: train.stationX,
-				fromY: train.stationY,
-				toX: isDepart ? train.nextX : train.stationX,
-				toY: isDepart ? train.nextY : train.stationY,
-				progress: simP,
-				isMoving: isDepart,
-				trackAngle: train.trackAngle,
-				createdAt: now,
-				lastPollAt: now,
-				speedFactor: train.speedFactor ?? 1.0,
-			});
+			this.createTrain(train, now);
 			return;
 		}
 
-		// fade-out 중 복귀 → fade-out 취소
 		existing.fadeOutStartedAt = undefined;
 		existing.lastPollAt = now;
-
-		// 공통 갱신 (항상 실행)
 		existing.direction = train.direction;
 		existing.trackAngle = train.trackAngle;
 
 		const isDepart = train.status === "출발";
-
-		// 구간 분류: 같은 구간 / 다음 구간으로 진행 / 예상 밖 변경
 		const segmentSame =
 			existing.stationId === train.stationId && existing.toStationId === train.nextStationId;
 		const trainAdvanced = existing.toStationId === train.stationId;
 
 		if (segmentSame) {
-			// ── 같은 구간 ──────────────────────────────────────────────────────
-			if (isDepart) {
-				// 출발: 목표 좌표 동기화 후 이동 계속 (progress 유지 — 역방향 점프 방지)
-				existing.toX = train.nextX;
-				existing.toY = train.nextY;
-				existing.isMoving = true;
-			}
-			// 도착/진입 + 같은 구간: 현재 이동 상태 유지
-			//   이동 중이면 → 비정상 데이터(스테일) 무시, 계속 이동
-			//   이미 정차 중이면 → 정차 유지
+			applySegmentSame(existing, train);
 		} else if (trainAdvanced) {
-			// ── 다음 구간으로 정상 진행 ────────────────────────────────────────
 			if (isDepart) {
-				// API에서 B역 출발 확인 → 진행률에 관계없이 즉시 B로 스냅 후 C로 이동
-				// progress < 1: 폴링 지연으로 아직 B 미도달 → B로 즉시 정렬 (A에서 출발하는 버그 수정)
-				// progress >= 1: currentX ≈ B이므로 기존과 동일한 효과
-				existing.stationId = train.stationId;
-				existing.toStationId = train.nextStationId;
-				existing.fromX = train.stationX; // B 좌표
-				existing.fromY = train.stationY;
-				existing.toX = train.nextX; // C 좌표
-				existing.toY = train.nextY;
-				existing.currentX = train.stationX; // B로 스냅
-				existing.currentY = train.stationY;
-				existing.progress = 0;
-				existing.speedFactor = train.speedFactor ?? 1.0;
-				existing.isMoving = true;
-				existing.trailDirty = true;
-				existing.pendingToX = undefined;
-				existing.pendingToY = undefined;
-				existing.pendingStationId = undefined;
-				existing.pendingToStationId = undefined;
+				applyAdvancedDepart(existing, train);
 			} else {
-				// 도착/진입: 전진 방향 스냅 (열차가 실제로 역에 도착한 상태)
-				existing.stationId = train.stationId;
-				existing.toStationId = train.nextStationId;
-				existing.fromX = train.stationX;
-				existing.fromY = train.stationY;
-				existing.toX = train.stationX;
-				existing.toY = train.stationY;
-				existing.currentX = train.stationX;
-				existing.currentY = train.stationY;
-				existing.progress = 0;
-				existing.isMoving = false;
-				existing.trailDirty = true;
-				existing.pendingToX = undefined;
-				existing.pendingToY = undefined;
-				existing.pendingStationId = undefined;
-				existing.pendingToStationId = undefined;
+				applyAdvancedArrive(existing, train);
 			}
 		} else {
-			// ── 예상 밖 구간 변경 (API 이상, 2+ 역 점프 등) ──────────────────
-			existing.unexpectedSnapAt = now;        // 경고 마커 트리거
-			existing.unexpectedSnapX = existing.currentX; // 텔레포트 직전 위치 저장
-			existing.unexpectedSnapY = existing.currentY;
-			existing.stationId = train.stationId;
-			existing.toStationId = train.nextStationId;
-			existing.fromX = train.stationX;
-			existing.fromY = train.stationY;
-			existing.toX = isDepart ? train.nextX : train.stationX;
-			existing.toY = isDepart ? train.nextY : train.stationY;
-			existing.currentX = train.stationX;
-			existing.currentY = train.stationY;
-			existing.progress = 0;
-			existing.speedFactor = train.speedFactor ?? 1.0;
-			existing.isMoving = isDepart;
-			existing.trailDirty = true;
-			existing.pendingToX = undefined;
-			existing.pendingToY = undefined;
-			existing.pendingStationId = undefined;
-			existing.pendingToStationId = undefined;
+			applyUnexpectedSnap(existing, train, isDepart, now);
 		}
 	}
 
