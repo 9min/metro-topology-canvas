@@ -220,6 +220,8 @@ const { data } = supabase.storage
 
 ## 데이터 캐싱 전략
 
+> 이 프로젝트는 TanStack Query를 사용하지 않는다. 아래 내용은 범용 참고 가이드이다.
+
 ### TanStack Query 캐싱 설정
 
 ```tsx

@@ -213,6 +213,8 @@ function TodoList() {
 
 ## Edge Functions 에러 처리
 
+> 이 프로젝트는 Vercel Serverless Functions(`api/*.ts`)를 사용한다. 아래 Supabase Edge Function 예시는 범용 참고 가이드이다. Vercel 함수의 에러 처리도 동일한 원칙을 따른다.
+
 Edge Functions에서는 HTTP 응답으로 에러를 반환한다.
 
 ```ts

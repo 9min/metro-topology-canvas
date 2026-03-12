@@ -49,15 +49,14 @@
 - [ ] 시크릿/민감 정보가 코드에 포함되지 않았는가?
 - [ ] 에러 메시지에 내부 구현 세부사항이 노출되지 않는가?
 
-## Supabase
+## Vercel Edge Functions (api/)
 
-- [ ] 새 테이블에 RLS가 활성화되어 있는가?
-- [ ] RLS 정책이 요구사항에 맞게 설정되어 있는가?
-- [ ] `{ data, error }` 패턴에서 `error`를 확인하는가?
-- [ ] `select("*")` 대신 필요한 컬럼만 선택했는가?
-- [ ] `SERVICE_ROLE_KEY`가 클라이언트 코드에서 사용되지 않는가?
-- [ ] 마이그레이션 파일에 RLS 정책이 포함되어 있는가?
-- [ ] `database.ts` 타입 파일이 최신 스키마와 일치하는가?
+> 이 프로젝트는 Supabase를 사용하지 않는다. API 프록시로 Vercel Serverless Functions를 사용한다.
+
+- [ ] Vercel 함수에서 HTTP 메서드를 올바르게 검증하는가?
+- [ ] 환경변수(`process.env.VITE_SEOUL_API_KEY`)가 함수 내에서 안전하게 참조되는가?
+- [ ] 외부 API 호출 실패 시 적절한 HTTP 상태 코드와 에러 메시지를 반환하는가?
+- [ ] 응답에 적절한 CORS 헤더가 설정되어 있는가?
 
 ## 성능
 

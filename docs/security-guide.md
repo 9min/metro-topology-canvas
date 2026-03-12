@@ -219,31 +219,30 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
 ## 환경변수 및 시크릿 관리
 
-### Supabase 환경변수
+### 프로젝트 환경변수
 
 ```
 # .env.example
-VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
+VITE_SEOUL_API_KEY=
+VITE_SEOUL_API_BASE_URL=http://swopenapi.seoul.go.kr/api/subway
 ```
 
-- `VITE_` 접두사가 붙은 변수는 클라이언트에 노출된다.
-- `SUPABASE_URL`과 `SUPABASE_ANON_KEY`는 클라이언트에 노출되어도 안전하다 (RLS가 보호).
-- `SERVICE_ROLE_KEY`는 절대 클라이언트에 노출하지 않는다. Edge Functions에서만 사용한다.
+- `VITE_` 접두사가 붙은 변수는 클라이언트 번들에 포함되어 노출된다.
+- `VITE_SEOUL_API_KEY`는 공공 API 키로, 클라이언트에 노출되어도 괜찮으나 남용 방지를 위해 Vercel 프록시에서 서버사이드(`process.env.VITE_SEOUL_API_KEY`)로 처리하는 것을 권장한다.
 
 ### 규칙
 
-- `.env` 파일을 `.gitignore`에 반드시 포함한다.
+- `.env` 및 `.env.local` 파일을 `.gitignore`에 반드시 포함한다.
 - `.env.example` 파일에 필요한 환경변수 키만 기재한다 (값 없이).
 - 코드에 시크릿을 하드코딩하지 않는다.
 
 ### 환경별 변수 관리
 
-| 환경 | Supabase | 프론트엔드 |
-|------|----------|----------|
-| 로컬 개발 | Supabase CLI (로컬) | `.env.local` |
-| Preview | Supabase Staging 프로젝트 | Vercel Preview 환경변수 |
-| 프로덕션 | Supabase Production 프로젝트 | Vercel Production 환경변수 |
+| 환경 | 관리 방식 |
+|------|----------|
+| 로컬 개발 | `.env.local` |
+| Preview | Vercel Preview 환경변수 |
+| 프로덕션 | Vercel Production 환경변수 |
 
 ## 의존성 취약점 스캔
 

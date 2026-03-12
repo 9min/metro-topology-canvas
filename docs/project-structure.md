@@ -2,14 +2,20 @@
 
 ## 프로젝트 루트 구조
 
-공공 API를 직접 호출하는 프론트엔드 전용 프로젝트이다. 별도 백엔드 서버 없이 운영한다.
+Vercel Edge Functions를 API 프록시로 활용하는 프론트엔드 중심 프로젝트이다. 별도의 상시 운영 백엔드 서버 없이 운영하며, CORS/Mixed Content 우회가 필요한 API만 `api/` 디렉토리의 Serverless Function을 경유한다.
 
 ```
 프로젝트-루트/
-├── .vscode/                    # VSCode 설정 (settings.json, extensions.json 등)
+├── .vscode/                    # VSCode 설정 (settings.json, extensions.json)
 ├── .github/                    # GitHub Actions 워크플로우
 │   └── workflows/
 ├── api/                        # Vercel Serverless Functions (API 프록시)
+│   ├── line9.ts                # 9호선 서울 공공 API 프록시 (CORS 우회)
+│   ├── smssParser.ts           # 서울메트로 SMSS HTML 스크래핑
+│   ├── trains.ts               # 1~8호선 SMSS 열차 데이터 엔드포인트
+│   └── tsconfig.json           # api/ 전용 TypeScript 설정
+├── plugins/                    # Vite 커스텀 플러그인
+│   └── smssDevProxy.ts         # 개발 환경 SMSS 프록시
 ├── scripts/                    # 데이터 수집/분석 스크립트
 │   ├── captureTrainMovement.ts # 열차 이동 데이터 캡처
 │   ├── collectApiData.ts       # 공공 API 데이터 수집
@@ -27,15 +33,21 @@
 │   │   └── feature/            # 기능별 컴포넌트 (StationInspector, TrainTracker 등)
 │   ├── hooks/                  # 커스텀 훅
 │   ├── data/                   # 정적 데이터 (지하철역 좌표, 노선 그래프 JSON)
-│   ├── lib/                    # 외부 라이브러리 설정
-│   ├── services/               # 공공 API 호출 함수
+│   ├── lib/                    # 라이브러리 유틸리티 (shadcn/ui 자동 생성 포함)
+│   ├── services/               # 공공 API 호출 함수, 시뮬레이터
 │   ├── stores/                 # Zustand 상태 관리
 │   ├── types/                  # TypeScript 타입 정의
 │   ├── utils/                  # 유틸리티 함수 (보간 알고리즘 등)
-│   └── constants/              # 상수 정의 (호선 색상, API URL 등)
+│   └── constants/              # 상수 정의 (호선 색상, 맵 설정, 오버레이 스타일 등)
 ├── tests/                      # 테스트 파일
+│   ├── api/                    # Vercel 함수 테스트
+│   ├── canvas/                 # PixiJS 렌더링 객체 테스트
 │   ├── fixtures/               # API 응답 픽스처 데이터
-│   └── utils/helpers/          # 테스트 헬퍼 유틸리티
+│   ├── hooks/                  # 커스텀 훅 테스트
+│   ├── services/               # 서비스 함수 테스트
+│   ├── stores/                 # Zustand 스토어 테스트
+│   └── utils/                  # 유틸리티 함수 테스트
+│       └── helpers/            # 테스트 헬퍼 유틸리티
 ├── docs/                       # 프로젝트 문서
 ├── public/                     # 정적 파일
 ├── .env.example                # 환경변수 키 목록 (Git 추적)
@@ -72,6 +84,7 @@ src/canvas/
 │   └── RoutePath.ts            # 경로 탐색 결과 렌더링
 └── interactions/
     ├── zoomPan.ts              # 줌/팬 인터랙션
+    ├── panGuard.ts             # 모바일 패닝 중 선택 방지
     ├── stationClick.ts         # 역 클릭 이벤트
     └── trainClick.ts           # 열차 클릭 이벤트
 ```
@@ -94,27 +107,12 @@ src/canvas/
 ]
 ```
 
-### `src/services/` — 공공 API 호출
+### `src/services/` — API 호출 및 시뮬레이터
 
-서울열린데이터광장 API를 호출하는 함수를 포함한다.
+외부 데이터를 가져오는 함수와 시뮬레이션 로직을 포함한다.
 
-```ts
-// src/services/trainApi.ts
-const API_KEY = import.meta.env.VITE_SEOUL_API_KEY;
-
-export async function fetchLineTrains(line: string): Promise<TrainPosition[]> {
-  const response = await fetch(
-    `http://swopenAPI.seoul.go.kr/api/subway/${API_KEY}/json/realtimePosition/0/100/${line}`
-  );
-
-  if (!response.ok) {
-    throw new Error(`API 호출 실패: ${response.status}`);
-  }
-
-  const data: SeoulApiResponse = await response.json();
-  return parseTrainPositions(data.realtimePositionList);
-}
-```
+- `trainApi.ts` — 1~8호선 SMSS 데이터(`/api/trains` Vercel 프록시 경유)와 9호선 공공 API(`/api/line9` Vercel 프록시 경유)를 호출하여 `TrainPosition[]`으로 파싱한다.
+- `trainSimulator.ts` — 운행 시간 외 시뮬레이션 모드에서 가상 열차 데이터를 생성한다.
 
 ### `src/stores/` — Zustand 상태 관리
 

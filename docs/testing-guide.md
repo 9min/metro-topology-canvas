@@ -3,8 +3,7 @@
 ## 테스트 도구
 
 - **테스트 프레임워크**: Vitest
-- **컴포넌트 테스트**: @testing-library/react
-- **E2E 테스트**: Playwright (필요 시)
+- **E2E 테스트**: Playwright (필요 시, devDependencies 포함)
 
 ## 테스트 파일 위치 및 네이밍
 
@@ -22,6 +21,8 @@
 │   ├── stores/useTrainStore.ts
 │   └── utils/trainInterpolation.ts
 └── tests/
+    ├── api/
+    │   └── smssParser.test.ts                 # SMSS HTML 스크래핑 파서 테스트
     ├── canvas/
     │   ├── animation/TrainAnimator.test.ts
     │   ├── interactions/trainClick.test.ts
@@ -90,26 +91,23 @@ describe("formatDate", () => {
 
 ### 통합 테스트 (Integration Test)
 
-- **대상**: 컴포넌트, API 엔드포인트, 여러 모듈의 연동
+- **대상**: Zustand 스토어 + 서비스 함수 연동, 여러 모듈의 협력 테스트
 - **목표**: 모듈 간 상호작용 검증
 - **비율**: 전체 테스트의 약 20%
 
-```tsx
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { LoginForm } from "@/components/LoginForm";
+```ts
+import { describe, it, expect, vi } from "vitest";
+import { fetchLineTrains } from "@/services/trainApi";
 
-describe("LoginForm", () => {
-  it("유효한 입력으로 폼을 제출하면 onSubmit이 호출된다", async () => {
-    const handleSubmit = vi.fn();
-    render(<LoginForm onSubmit={handleSubmit} isLoading={false} />);
+describe("fetchLineTrains", () => {
+  it("API 응답을 TrainPosition 배열로 변환한다", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ trains: [/* 픽스처 */ ] }),
+    }));
 
-    await userEvent.type(screen.getByLabelText("이메일"), "test@example.com");
-    await userEvent.type(screen.getByLabelText("비밀번호"), "password123");
-    await userEvent.click(screen.getByRole("button", { name: "로그인" }));
-
-    expect(handleSubmit).toHaveBeenCalledWith("test@example.com", "password123");
+    const result = await fetchLineTrains(1);
+    expect(result).toBeInstanceOf(Array);
   });
 });
 ```
