@@ -72,19 +72,6 @@ function tickIntroZoom(
 	if (t >= 1) introState.done = true;
 }
 
-/** 선택된 열차를 화면 중앙에 추적한다 */
-function tickCameraTracking(
-	trackedNo: string | null,
-	animator: TrainAnimator,
-	viewport: { scale: { x: number; y: number }; x: number; y: number },
-): void {
-	if (trackedNo === null) return;
-	const state = animator.getTrainState(trackedNo);
-	if (state === undefined) return;
-	viewport.x = window.innerWidth / 2 - state.currentX * viewport.scale.x;
-	viewport.y = window.innerHeight / 2 - state.currentY * viewport.scale.y;
-}
-
 /**
  * PixiJS 지도 캔버스 오케스트레이터 컴포넌트.
  * canvas 엘리먼트는 usePixiApp 내부에서 생성하여 containerRef div에 추가된다.
@@ -96,7 +83,6 @@ export function MapCanvas() {
 	const initStations = useStationStore((state) => state.initStations);
 	const interpolatedTrains = useTrainStore((state) => state.interpolatedTrains);
 	const selectedStation = useStationStore((state) => state.selectedStation);
-	const selectedTrainNo = useTrainStore((state) => state.selectedTrainNo);
 	const activeLines = useMapStore((state) => state.activeLines);
 	const route = useRouteStore((state) => state.route);
 
@@ -104,7 +90,6 @@ export function MapCanvas() {
 	const stationGraph = useMemo(() => buildStationGraph(LINKS), []);
 	const transferMap = useMemo(() => buildTransferMap(STATIONS), []);
 	const animatorRef = useRef<TrainAnimator | null>(null);
-	const selectedTrainNoRef = useRef<string | null>(null);
 	const trailMapRef = useRef<Map<string, TrailQueue>>(new Map());
 	const frameCountRef = useRef(0);
 
@@ -229,8 +214,6 @@ export function MapCanvas() {
 				);
 			}
 
-			tickCameraTracking(selectedTrainNoRef.current, animator, scene.viewport);
-
 			// 경로 펄스 애니메이션
 			const currentRoute = useRouteStore.getState().route;
 			if (currentRoute !== null && currentRoute.length > 0) {
@@ -257,11 +240,6 @@ export function MapCanvas() {
 			cleanupZoomPan();
 		};
 	}, [scene, stationScreenMap, stationGraph, transferMap]);
-
-	// selectedTrainNo 변경 시 ref 동기화
-	useEffect(() => {
-		selectedTrainNoRef.current = selectedTrainNo;
-	}, [selectedTrainNo]);
 
 	// 폴링 데이터가 갱신되면 애니메이터에 새 목표를 전달
 	useEffect(() => {

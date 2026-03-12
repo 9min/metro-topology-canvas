@@ -100,18 +100,15 @@ const ROTATION_LERP_FACTOR = 0.12;
 
 const ALL_LINES = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
-/** 선택 상태 및 노선 필터에 따른 열차 alpha 값을 반환한다 (비활성 노선 > 역 선택 > 열차 선택 > 기본) */
+/** 선택 상태 및 노선 필터에 따른 열차 alpha 값을 반환한다 (비활성 노선 > 역 선택 > 기본) */
 function computeTrainAlpha(
-	trainNo: string,
 	toStationId: string,
-	selectedTrainNo: string | null,
 	selectedStationId: string | null,
 	line: number,
 	activeLines: Set<number>,
 ): number {
 	if (!activeLines.has(line)) return 0;
 	if (selectedStationId !== null) return toStationId === selectedStationId ? 1.0 : 0.15;
-	if (selectedTrainNo !== null) return trainNo === selectedTrainNo ? 1.0 : 0.15;
 	return 1.0;
 }
 
@@ -315,9 +312,7 @@ export function drawAnimatedTrains(
 		updateTrainRotation(gfx, train, isNew);
 
 		let alpha = computeTrainAlpha(
-			train.trainNo,
 			train.toStationId,
-			selectedTrainNo,
 			selectedStationId,
 			train.line,
 			activeLines,
