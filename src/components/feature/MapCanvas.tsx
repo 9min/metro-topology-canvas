@@ -3,12 +3,12 @@ import { useEffect, useMemo, useRef } from "react";
 import { TrainAnimator } from "@/canvas/animation/TrainAnimator";
 import { handleStationTap } from "@/canvas/interactions/stationClick";
 import { handleTrainTap } from "@/canvas/interactions/trainClick";
-import { flyToRoute, flyToStation, setupZoomPan } from "@/canvas/interactions/zoomPan";
+import { flyToRoute, setupZoomPan } from "@/canvas/interactions/zoomPan";
 import { computeLinkCongestion, drawCongestionHeatmap } from "@/canvas/objects/CongestionHeatmap";
 import { drawLinks, updateLinksAlpha } from "@/canvas/objects/LineLink";
 import { drawRoute, updateRoutePulse } from "@/canvas/objects/RoutePath";
 import { drawStationLabels, updateLabelVisibility } from "@/canvas/objects/StationLabel";
-import { drawAllStations, updateStationAlpha } from "@/canvas/objects/StationNode";
+import { drawAllStations, updateStationAlpha, updateStationSelectionRing } from "@/canvas/objects/StationNode";
 import {
 	drawTrails,
 	pruneTrails,
@@ -82,7 +82,6 @@ export function MapCanvas() {
 	const { stationScreenMap } = useCoordTransform(STATIONS);
 	const initStations = useStationStore((state) => state.initStations);
 	const interpolatedTrains = useTrainStore((state) => state.interpolatedTrains);
-	const selectedStation = useStationStore((state) => state.selectedStation);
 	const activeLines = useMapStore((state) => state.activeLines);
 	const route = useRouteStore((state) => state.route);
 
@@ -145,6 +144,8 @@ export function MapCanvas() {
 
 		drawLinks(scene.linksLayer, LINKS, stationScreenMap);
 		drawAllStations(scene.stationsLayer, STATIONS, stationScreenMap, onStationTap, transferMap);
+		const stationRingGfx = new Graphics();
+		scene.stationsLayer.addChild(stationRingGfx);
 		drawStationLabels(scene.labelsLayer, STATIONS, stationScreenMap);
 		// 초기 레이블 숨김 (시맨틱 줌)
 		scene.labelsLayer.alpha = 0;
@@ -221,6 +222,10 @@ export function MapCanvas() {
 				updateRoutePulse(scene.routeLayer, currentRoute, currentStationMap);
 			}
 
+			// 역 선택 깜빡이는 외곽선
+			const currentSelectedStation = useStationStore.getState().selectedStation;
+			updateStationSelectionRing(stationRingGfx, currentSelectedStation, stationScreenMap);
+
 			// 성능 측정 (250ms throttle)
 			maybeUpdatePerfStore(
 				scene.app.ticker.FPS,
@@ -247,24 +252,24 @@ export function MapCanvas() {
 		animatorRef.current.setTargets(interpolatedTrains);
 	}, [interpolatedTrains]);
 
-	// 역 선택 또는 노선 필터 변경 시 linksLayer 딤 + 노선 alpha + stationAlpha 업데이트
+	// 노선 필터 변경 / 경로 활성 여부에 따라 linksLayer 딤 + 노선 alpha + stationAlpha 업데이트
+	// 역 선택은 alpha에 영향을 주지 않는다 (깜빡이는 ring으로만 표시)
 	useEffect(() => {
 		if (scene === null) return;
 		const hasRoute = route !== null && route.length > 0;
-		const active = selectedStation !== null;
-		scene.linksLayer.alpha = hasRoute ? 0.1 : active ? 0.2 : 1.0;
+		scene.linksLayer.alpha = hasRoute ? 0.1 : 1.0;
 		scene.stationsLayer.alpha = hasRoute ? 0.15 : 1.0;
 		updateLinksAlpha(scene.linksLayer, activeLines);
 		if (!hasRoute) {
 			updateStationAlpha(
 				scene.stationsLayer,
 				STATIONS,
-				selectedStation?.id ?? null,
+				null,
 				activeLines,
 				transferMap,
 			);
 		}
-	}, [scene, selectedStation, activeLines, route]);
+	}, [scene, activeLines, route]);
 
 	// 경로 변경 시 routeLayer에 경로 렌더링 + 전체 경로가 보이도록 카메라 이동
 	useEffect(() => {
@@ -277,21 +282,6 @@ export function MapCanvas() {
 			scene.routeLayer.removeChildren();
 		}
 	}, [scene, route, stationScreenMap]);
-
-	// selectedStation 변경 시 flyToStation (검색에서 선택 시, 경로 모드가 아닐 때만)
-	const isRouteMode = useRouteStore((s) => s.isRouteMode);
-	const isRouteModeRef = useRef(isRouteMode);
-	useEffect(() => {
-		isRouteModeRef.current = isRouteMode;
-	}, [isRouteMode]);
-
-	useEffect(() => {
-		if (scene === null || selectedStation === null) return;
-		if (isRouteModeRef.current) return;
-		const coord = stationScreenMap.get(selectedStation.id);
-		if (coord === undefined) return;
-		flyToStation(scene.viewport, coord.x, coord.y);
-	}, [scene, selectedStation, stationScreenMap]);
 
 	return (
 		<>

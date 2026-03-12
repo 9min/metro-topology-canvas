@@ -94,6 +94,26 @@ function lineColorNum(line: number): number {
 /** 환승역 반지름 배수 (비환승역 대비) */
 const TRANSFER_RADIUS_SCALE = 1.5;
 
+/**
+ * 매 프레임 호출 — 선택된 역에 깜빡이는 외곽선을 그린다.
+ * 선택 없음: Graphics를 비워 아무것도 표시하지 않는다.
+ */
+export function updateStationSelectionRing(
+	ringGfx: Graphics,
+	selectedStation: Station | null,
+	stationScreenMap: Map<string, ScreenCoord>,
+): void {
+	ringGfx.clear();
+	if (selectedStation === null) return;
+	const coord = stationScreenMap.get(selectedStation.id);
+	if (coord === undefined) return;
+	const blinkT = Math.sin((performance.now() / 300) * Math.PI);
+	const color = lineColorNum(selectedStation.line);
+	const alpha = blinkT > 0 ? 1.0 : 0.3;
+	const radius = STATION_RADIUS * TRANSFER_RADIUS_SCALE + 4;
+	ringGfx.circle(coord.x, coord.y, radius).stroke({ width: 2, color, alpha });
+}
+
 /** 환승역 파이 차트(균등 분할 arc) 렌더링 */
 function drawTransferStation(
 	gfx: Graphics,
