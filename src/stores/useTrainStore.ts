@@ -3,6 +3,11 @@ import { TRAIN_GRACE_POLL_COUNT } from "@/constants/mapConfig";
 import type { ScreenCoord } from "@/types/map";
 import type { InterpolatedTrain, TrainPosition } from "@/types/train";
 import type { AdjacencyInfo } from "@/utils/stationNameResolver";
+import {
+	type TrainSnapshot,
+	loadAllSnapshots,
+	saveAllSnapshots,
+} from "@/utils/trainLocalCache";
 import { interpolateTrainPosition } from "@/utils/trainInterpolation";
 
 /** 열차별 이전 폴링 상태 (grace period용) */
@@ -55,16 +60,51 @@ export const useTrainStore = create<TrainState>((set, get) => ({
 		// 현재 폴에 존재하는 열차 번호 집합
 		const currentTrainNos = new Set(positions.map((t) => t.trainNo));
 
+		// 신규/복귀 열차가 있을 때만 스냅샷 한 번에 로드 (단일 getItem + JSON.parse)
+		const hasNewTrains = positions.some((t) => !oldPollMap.has(t.trainNo));
+		const snapshotMap = hasNewTrains ? loadAllSnapshots() : new Map<string, TrainSnapshot>();
+
+		// 이번 폴 결과를 저장할 스냅샷 맵 (시뮬레이션 열차 제외)
+		const newSnapshotMap = new Map<string, TrainSnapshot>();
+		const now = Date.now();
+
 		for (const train of positions) {
-			const result = interpolateTrainPosition(train, stationScreenMap, adjacencyMap);
+			// 신규/복귀 열차에 한해 이전 스냅샷 조회 (기존 열차는 불필요)
+			const isNewTrain = !oldPollMap.has(train.trainNo);
+			const snapshot =
+				isNewTrain && !train.trainNo.startsWith("gm-")
+					? snapshotMap.get(train.trainNo)
+					: undefined;
+
+			const result = interpolateTrainPosition(
+				train,
+				stationScreenMap,
+				adjacencyMap,
+				snapshot,
+			);
 			if (result !== null) {
 				interpolated.push(result);
 				newInterpolatedMap.set(train.trainNo, result);
+
+				// 시뮬레이션 열차(gm-xxx)는 세션 간 번호 재사용 없으므로 저장 제외
+				if (!train.trainNo.startsWith("gm-")) {
+					newSnapshotMap.set(train.trainNo, {
+						stationId: train.stationId,
+						nextStationId: result.nextStationId,
+						status: train.status,
+						savedAt: now,
+					});
+				}
 			}
 
 			newPollMap.set(train.trainNo, {
 				missedCount: 0,
 			});
+		}
+
+		// 전체 스냅샷을 단일 키로 저장 (setItem 1번)
+		if (newSnapshotMap.size > 0) {
+			saveAllSnapshots(newSnapshotMap);
 		}
 
 		// Grace period: 현재 폴에 없지만 이전에 있었던 열차 유지

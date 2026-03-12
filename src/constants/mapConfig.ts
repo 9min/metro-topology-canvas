@@ -36,8 +36,8 @@ export const SMSS_POLLING_INTERVAL_MS = 5_000;
 /** 서울열린데이터광장 API 폴링 주기 (ms) — 30초 (9호선, 일일 한도 있음) */
 export const API_POLLING_INTERVAL_MS = 30_000;
 
-/** 열차 역간 이동 기준 시간 (ms) — 50초에 구간 1개 통과 */
-export const SEGMENT_TRAVEL_MS = 50_000;
+/** 열차 역간 이동 기준 시간 (ms) — 45초에 구간 1개 통과 */
+export const SEGMENT_TRAVEL_MS = 45_000;
 
 /** 신규 열차 페이드인 시간 (ms) */
 export const TRAIN_FADEIN_MS = 500;
@@ -104,7 +104,10 @@ export const PERF_UPDATE_INTERVAL_MS = 250;
 export const TRAIN_GRACE_POLL_COUNT = 2;
 
 /** 열차 페이드아웃 지속 시간 (ms) */
-export const TRAIN_FADEOUT_MS = 500;
+export const TRAIN_FADEOUT_MS = 1500;
 
 /** 모드 전환 시 로딩 오버레이 표시 시간 (ms) */
 export const MODE_LOADING_MS = 3_000;
+
+/** 예상 밖 구간 변경 경고 마커 표시 지속 시간 (ms) */
+export const UNEXPECTED_MARKER_DURATION_MS = 2_500;

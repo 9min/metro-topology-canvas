@@ -23,6 +23,23 @@ function advanceTrainState(state: AnimatedTrainState, delta: number): void {
 	const t = easeInOut(state.progress);
 	state.currentX = state.fromX + (state.toX - state.fromX) * t;
 	state.currentY = state.fromY + (state.toY - state.fromY) * t;
+
+	// Waypoint 자동 전환: B역 도달(progress=1) 후 pending C역으로 즉시 전환
+	if (state.progress >= 1 && state.pendingToX !== undefined) {
+		state.fromX = state.toX;
+		state.fromY = state.toY;
+		state.toX = state.pendingToX;
+		state.toY = state.pendingToY!;
+		state.stationId = state.pendingStationId!;
+		state.toStationId = state.pendingToStationId!;
+		state.progress = 0;
+		state.isMoving = true;
+		state.trailDirty = true;
+		state.pendingToX = undefined;
+		state.pendingToY = undefined;
+		state.pendingStationId = undefined;
+		state.pendingToStationId = undefined;
+	}
 }
 
 /**
@@ -142,23 +159,30 @@ export class TrainAnimator {
 			//   이미 정차 중이면 → 정차 유지
 		} else if (trainAdvanced) {
 			// ── 다음 구간으로 정상 진행 ────────────────────────────────────────
-			existing.stationId = train.stationId;
-			existing.toStationId = train.nextStationId;
-
 			if (isDepart) {
-				// 출발: 출발역 좌표로 스냅 후 다음 역으로 이동 (노선 이탈 방지)
-				existing.fromX = train.stationX;
+				// API에서 B역 출발 확인 → 진행률에 관계없이 즉시 B로 스냅 후 C로 이동
+				// progress < 1: 폴링 지연으로 아직 B 미도달 → B로 즉시 정렬 (A에서 출발하는 버그 수정)
+				// progress >= 1: currentX ≈ B이므로 기존과 동일한 효과
+				existing.stationId = train.stationId;
+				existing.toStationId = train.nextStationId;
+				existing.fromX = train.stationX; // B 좌표
 				existing.fromY = train.stationY;
-				existing.toX = train.nextX;
+				existing.toX = train.nextX; // C 좌표
 				existing.toY = train.nextY;
-				existing.currentX = train.stationX;
+				existing.currentX = train.stationX; // B로 스냅
 				existing.currentY = train.stationY;
-				existing.progress = 0; // 역에서 깔끔하게 시작 (simProgress 제거)
+				existing.progress = 0;
 				existing.speedFactor = train.speedFactor ?? 1.0;
 				existing.isMoving = true;
 				existing.trailDirty = true;
+				existing.pendingToX = undefined;
+				existing.pendingToY = undefined;
+				existing.pendingStationId = undefined;
+				existing.pendingToStationId = undefined;
 			} else {
 				// 도착/진입: 전진 방향 스냅 (열차가 실제로 역에 도착한 상태)
+				existing.stationId = train.stationId;
+				existing.toStationId = train.nextStationId;
 				existing.fromX = train.stationX;
 				existing.fromY = train.stationY;
 				existing.toX = train.stationX;
@@ -168,9 +192,16 @@ export class TrainAnimator {
 				existing.progress = 0;
 				existing.isMoving = false;
 				existing.trailDirty = true;
+				existing.pendingToX = undefined;
+				existing.pendingToY = undefined;
+				existing.pendingStationId = undefined;
+				existing.pendingToStationId = undefined;
 			}
 		} else {
 			// ── 예상 밖 구간 변경 (API 이상, 2+ 역 점프 등) ──────────────────
+			existing.unexpectedSnapAt = now;        // 경고 마커 트리거
+			existing.unexpectedSnapX = existing.currentX; // 텔레포트 직전 위치 저장
+			existing.unexpectedSnapY = existing.currentY;
 			existing.stationId = train.stationId;
 			existing.toStationId = train.nextStationId;
 			existing.fromX = train.stationX;
@@ -183,6 +214,10 @@ export class TrainAnimator {
 			existing.speedFactor = train.speedFactor ?? 1.0;
 			existing.isMoving = isDepart;
 			existing.trailDirty = true;
+			existing.pendingToX = undefined;
+			existing.pendingToY = undefined;
+			existing.pendingStationId = undefined;
+			existing.pendingToStationId = undefined;
 		}
 	}
 

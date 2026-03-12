@@ -86,4 +86,18 @@ export interface AnimatedTrainState {
 	trailDirty?: boolean;
 	/** 열차 속도 배율 (0.85~1.15). 시뮬레이션 모드에서 사용, 실시간 모드는 1.0 */
 	speedFactor: number;
+	/** Waypoint: 자동 전환 시 stationId (B역 ID) */
+	pendingStationId?: string;
+	/** Waypoint: 자동 전환 시 toStationId (C역 ID) */
+	pendingToStationId?: string;
+	/** Waypoint: 다음 구간 목표 X 좌표 (C역) */
+	pendingToX?: number;
+	/** Waypoint: 다음 구간 목표 Y 좌표 (C역) */
+	pendingToY?: number;
+	/** 예상 밖 구간 변경(텔레포트) 발생 시각 (ms). 경고 마커 표시용 */
+	unexpectedSnapAt?: number;
+	/** 텔레포트 직전 X 좌표. 경고 마커 위치 고정용 */
+	unexpectedSnapX?: number;
+	/** 텔레포트 직전 Y 좌표. 경고 마커 위치 고정용 */
+	unexpectedSnapY?: number;
 }

@@ -5,6 +5,7 @@ import {
 	TRAIN_CAPSULE_WIDTH,
 	TRAIN_FADEIN_MS,
 	TRAIN_FADEOUT_MS,
+	UNEXPECTED_MARKER_DURATION_MS,
 } from "@/constants/mapConfig";
 import { useMapStore } from "@/stores/useMapStore";
 import type { AnimatedTrainState } from "@/types/train";
@@ -22,6 +23,21 @@ function darkenColor(hex: number, factor: number): number {
 	return (r << 16) | (g << 8) | b;
 }
 
+/** 열차 본체(글로우 + 캡슐)를 지정 색상으로 그린다. gfx.clear() 호출 후 실행한다. */
+function drawTrainBody(gfx: Graphics, hex: number): void {
+	const L = TRAIN_CAPSULE_LENGTH;
+	const W = TRAIN_CAPSULE_WIDTH;
+	gfx.roundRect(-L * 1.25, -W * 1.25, L * 2.5, W * 2.5, W * 1.25).fill({
+		color: hex,
+		alpha: 0.15,
+	});
+	gfx
+		.roundRect(-L, -W, L * 2, W * 2, W)
+		.fill({ color: hex, alpha: 0.9 })
+		.stroke({ width: 1.2, color: darkenColor(hex, 0.6) });
+}
+
+
 /** 단일 열차 캡슐 Graphics를 생성하고 호선 색상으로 그린다 */
 export function createTrainGraphics(line: number): Graphics | null {
 	const colorStr = LINE_COLORS[line];
@@ -29,20 +45,11 @@ export function createTrainGraphics(line: number): Graphics | null {
 
 	const hex = colorToHex(colorStr);
 	const gfx = new Graphics();
+
+	drawTrainBody(gfx, hex);
+
 	const L = TRAIN_CAPSULE_LENGTH;
 	const W = TRAIN_CAPSULE_WIDTH;
-
-	// 글로우 효과 (은은한 반투명 캡슐)
-	gfx.roundRect(-L * 1.25, -W * 1.25, L * 2.5, W * 2.5, W * 1.25).fill({
-		color: hex,
-		alpha: 0.15,
-	});
-
-	// 본체 캡슐 (borderRadius=W → 양 끝 반원)
-	gfx
-		.roundRect(-L, -W, L * 2, W * 2, W)
-		.fill({ color: hex, alpha: 0.9 })
-		.stroke({ width: 1.2, color: darkenColor(hex, 0.6) });
 
 	// 헤드라이트 그룹 (펄스 애니메이션 대상)
 	const headlight = new Graphics();
@@ -223,6 +230,23 @@ function updateSelectionRing(
  * 역/열차 선택 및 노선 필터에 따라 alpha를 조정한다.
  * 이동 방향에 따라 캡슐을 회전시킨다.
  */
+/** 예상 밖 이동 경고 마커 텍스트 스타일 */
+const UNEXPECTED_MARKER_STYLE = {
+	fill: 0xff3333,
+	fontSize: 18,
+	fontWeight: "bold",
+	fontFamily: "sans-serif",
+	dropShadow: {
+		color: 0x000000,
+		blur: 4,
+		distance: 0,
+		alpha: 0.9,
+	},
+};
+
+/** 예상 밖 이동 경고 마커 풀: trainNo → Text */
+const unexpectedMarkerPool = new Map<string, Text>();
+
 /** 열차 번호 텍스트 스타일 */
 const TRAIN_LABEL_STYLE = {
 	fill: 0xcccccc,
@@ -289,6 +313,53 @@ function renderTrainLabels(labelsLayer: Container, animatedTrains: AnimatedTrain
 	}
 }
 
+/** 예상 밖 구간 변경 경고 "!" 마커를 렌더링한다 */
+function renderUnexpectedMarkers(
+	labelsLayer: Container,
+	animatedTrains: AnimatedTrainState[],
+	now: number,
+): void {
+	const { scale: viewportScale } = useMapStore.getState();
+	const invScale = 1 / viewportScale;
+
+	const activeTrainNos = new Set<string>();
+
+	for (const train of animatedTrains) {
+		if (train.unexpectedSnapAt === undefined) continue;
+
+		const elapsed = now - train.unexpectedSnapAt;
+		if (elapsed >= UNEXPECTED_MARKER_DURATION_MS) continue;
+
+		activeTrainNos.add(train.trainNo);
+
+		let marker = unexpectedMarkerPool.get(train.trainNo);
+		if (marker === undefined) {
+			marker = new Text({ text: "⚠", style: UNEXPECTED_MARKER_STYLE });
+			marker.anchor.set(0.5, 0.5);
+			unexpectedMarkerPool.set(train.trainNo, marker);
+			labelsLayer.addChild(marker);
+		}
+
+		marker.scale.set(invScale);
+		marker.x = train.unexpectedSnapX ?? train.currentX;
+		marker.y = train.unexpectedSnapY ?? train.currentY;
+
+		// 깜빡임: sin 기반 alpha (0.4~1.0)
+		const blinkT = Math.sin((elapsed / 300) * Math.PI);
+		marker.alpha = 0.7 + 0.3 * blinkT;
+		marker.visible = true;
+	}
+
+	// 만료되거나 사라진 열차의 마커 제거
+	for (const [trainNo, marker] of unexpectedMarkerPool) {
+		if (!activeTrainNos.has(trainNo)) {
+			labelsLayer.removeChild(marker);
+			marker.destroy();
+			unexpectedMarkerPool.delete(trainNo);
+		}
+	}
+}
+
 export function drawAnimatedTrains(
 	trainsLayer: Container,
 	animatedTrains: AnimatedTrainState[],
@@ -318,9 +389,11 @@ export function drawAnimatedTrains(
 			const fadeElapsed = now - train.fadeOutStartedAt;
 			const fadeOutProgress = Math.min(fadeElapsed / TRAIN_FADEOUT_MS, 1);
 			alpha *= 1 - fadeOutProgress;
-			const scale = 1 - 0.5 * fadeOutProgress;
-			gfx.scale.set(scale);
+			// 회색 틴트 (geometry 미변경 → 배칭 유지, 렌더링 아티팩트 없음)
+			if (gfx.tint !== 0x888888) gfx.tint = 0x888888;
 		} else {
+			// 복귀 시 틴트 초기화
+			if (gfx.tint !== 0xffffff) gfx.tint = 0xffffff;
 			// 신규 열차 페이드인 (500ms)
 			const age = now - train.createdAt;
 			if (age < TRAIN_FADEIN_MS) {
@@ -344,5 +417,9 @@ export function drawAnimatedTrains(
 	// 열차 번호 레이블 렌더링
 	if (trainLabelsLayer != null) {
 		renderTrainLabels(trainLabelsLayer, animatedTrains);
+		// 예상 밖 텔레포트 경고 마커: 개발 모드 전용 (API 데이터 품질 디버깅용)
+		if (import.meta.env.DEV) {
+			renderUnexpectedMarkers(trainLabelsLayer, animatedTrains, now);
+		}
 	}
 }
