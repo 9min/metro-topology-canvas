@@ -30,14 +30,22 @@ function updateExistingTrain(
 		existing.startX = existing.currentX;
 		existing.startY = existing.currentY;
 	} else {
-		// 실시간 모드: 타겟 변경 여부로 시작점 결정
+		// 실시간 모드: 스테일 데이터 필터링 + 타겟 변경 여부로 시작점 결정
+		const stationChanged = existing.fromStationId !== train.fromStationId;
+		const hasNewDestination = train.x !== train.stationX || train.y !== train.stationY;
 		const targetChanged = existing.targetX !== train.x || existing.targetY !== train.y;
+
+		if (!hasNewDestination && targetChanged && !stationChanged) {
+			// 같은 역에서 도착/진입 상태인데 타겟이 다름 → 스테일 데이터, 기존 애니메이션 유지
+			return;
+		}
+
 		if (targetChanged) {
-			// 타겟 변경 시 물리 역 좌표에서 재시작 → 노선 이탈 방지
+			// 새 목적지(출발 상태) → 역 물리 좌표에서 재시작 (노선 이탈 방지)
 			existing.startX = train.stationX;
 			existing.startY = train.stationY;
 		} else {
-			// 타겟 동일 시 현재 위치에서 계속 (부드러운 애니메이션 유지)
+			// 타겟 동일 → 현재 위치에서 부드럽게 계속
 			existing.startX = existing.currentX;
 			existing.startY = existing.currentY;
 		}
