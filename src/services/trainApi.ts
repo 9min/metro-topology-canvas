@@ -2,11 +2,6 @@ import type { SeoulApiResponse, SeoulApiTrainRaw, TrainPosition } from "@/types/
 
 const API_TIMEOUT_MS = 10_000;
 
-/** 환경변수에서 API 키를 읽는다 (함수 호출 시점에 평가) */
-function getApiKey(): string | undefined {
-	return import.meta.env.VITE_SEOUL_API_KEY as string | undefined;
-}
-
 /** 호선 번호 → API 호선명 매핑 */
 const LINE_NAMES: Record<number, string> = {
 	1: "1호선",
@@ -60,18 +55,13 @@ function parseRawTrain(raw: SeoulApiTrainRaw): TrainPosition | null {
 	};
 }
 
-/** 단일 호선의 실시간 열차 위치를 가져온다 */
+/** 단일 호선의 실시간 열차 위치를 가져온다 (9호선 전용 프록시 사용) */
 export async function fetchLineTrains(lineNumber: number): Promise<TrainPosition[]> {
-	const apiKey = getApiKey();
-	if (apiKey === undefined || apiKey === "") {
-		console.warn("[trainApi] VITE_SEOUL_API_KEY가 설정되지 않았습니다");
-		return [];
-	}
-
 	const lineName = LINE_NAMES[lineNumber];
 	if (lineName === undefined) return [];
 
-	const url = `http://swopenAPI.seoul.go.kr/api/subway/${apiKey}/json/realtimePosition/0/100/${lineName}`;
+	// 클라이언트 → 프록시 (서버사이드에서 외부 API 호출하여 Mixed Content/CORS 우회)
+	const url = `/api/line9?lineName=${encodeURIComponent(lineName)}`;
 
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
