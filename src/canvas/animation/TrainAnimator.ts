@@ -24,23 +24,23 @@ function updateExistingTrain(
 	adjacencyMap?: Map<string, AdjacencyInfo>,
 	continuousMode = false,
 ): void {
-	const stationChanged = existing.fromStationId !== train.fromStationId;
-
 	if (continuousMode) {
 		// 시뮬레이션 모드: 항상 현재 시각 위치에서 부드럽게 연속
 		// stationX/Y 리셋 금지 — 순간이동의 원인
 		existing.startX = existing.currentX;
 		existing.startY = existing.currentY;
-	} else if (stationChanged) {
-		// 실시간 모드: 역 변경 시 인접 여부로 시작점 결정
-		const isAdjacent =
-			adjacencyMap !== undefined &&
-			isAdjacentStation(existing.fromStationId, train.fromStationId, adjacencyMap);
-		existing.startX = isAdjacent ? existing.currentX : train.stationX;
-		existing.startY = isAdjacent ? existing.currentY : train.stationY;
 	} else {
-		existing.startX = existing.currentX;
-		existing.startY = existing.currentY;
+		// 실시간 모드: 타겟 변경 여부로 시작점 결정
+		const targetChanged = existing.targetX !== train.x || existing.targetY !== train.y;
+		if (targetChanged) {
+			// 타겟 변경 시 물리 역 좌표에서 재시작 → 노선 이탈 방지
+			existing.startX = train.stationX;
+			existing.startY = train.stationY;
+		} else {
+			// 타겟 동일 시 현재 위치에서 계속 (부드러운 애니메이션 유지)
+			existing.startX = existing.currentX;
+			existing.startY = existing.currentY;
+		}
 	}
 	existing.targetX = train.x;
 	existing.targetY = train.y;
