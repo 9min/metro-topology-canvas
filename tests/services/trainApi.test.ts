@@ -34,6 +34,7 @@ describe("fetchLineTrains", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 		vi.unstubAllEnvs();
+		vi.unstubAllGlobals();
 	});
 
 	it("API 응답을 TrainPosition 배열로 파싱한다", async () => {
@@ -54,9 +55,8 @@ describe("fetchLineTrains", () => {
 		expect(trains[1]?.status).toBe("출발");
 	});
 
-	it("API 키가 없으면 빈 배열을 반환한다", async () => {
-		vi.stubEnv("VITE_SEOUL_API_KEY", "");
-		const trains = await fetchLineTrains(1);
+	it("알 수 없는 호선 번호이면 빈 배열을 반환한다", async () => {
+		const trains = await fetchLineTrains(99);
 		expect(trains).toEqual([]);
 	});
 
@@ -83,6 +83,7 @@ describe("fetchAllTrains", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 		vi.unstubAllEnvs();
+		vi.unstubAllGlobals();
 	});
 
 	it("전달된 호선만 병렬 호출한다", async () => {
