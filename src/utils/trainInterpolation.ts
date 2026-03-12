@@ -1,14 +1,45 @@
 import type { ScreenCoord } from "@/types/map";
 import type { InterpolatedTrain, TrainPosition } from "@/types/train";
 import type { AdjacencyInfo } from "@/utils/stationNameResolver";
-import {
-	type TrainSnapshot,
-	estimateSimProgress,
-} from "@/utils/trainLocalCache";
+import { estimateSimProgress, type TrainSnapshot } from "@/utils/trainLocalCache";
 
 /** 두 값 사이의 선형 보간 */
 export function lerp(a: number, b: number, t: number): number {
 	return a + (b - a) * t;
+}
+
+interface NextStationInfo {
+	nextStationId: string;
+	nextX: number;
+	nextY: number;
+	trackAngle: number;
+}
+
+/** 인접 역 정보로 다음 역 좌표와 트랙 각도를 계산한다 */
+function resolveNextStation(
+	train: TrainPosition,
+	stationScreenMap: Map<string, ScreenCoord>,
+	adjacencyMap: Map<string, AdjacencyInfo>,
+	stationCoord: ScreenCoord,
+): NextStationInfo {
+	const fallback: NextStationInfo = {
+		nextStationId: train.stationId,
+		nextX: stationCoord.x,
+		nextY: stationCoord.y,
+		trackAngle: 0,
+	};
+	const adj = adjacencyMap.get(train.stationId);
+	if (adj === undefined) return fallback;
+	const nextId = train.direction === "상행" ? adj.prevs[0] : adj.nexts[0];
+	if (nextId === undefined) return fallback;
+	const nextCoord = stationScreenMap.get(nextId);
+	if (nextCoord === undefined) return fallback;
+	return {
+		nextStationId: nextId,
+		nextX: nextCoord.x,
+		nextY: nextCoord.y,
+		trackAngle: Math.atan2(nextCoord.y - stationCoord.y, nextCoord.x - stationCoord.x),
+	};
 }
 
 /**
@@ -28,33 +59,17 @@ export function interpolateTrainPosition(
 	const station = stationScreenMap.get(train.stationId);
 	if (station === undefined) return null;
 
-	let nextStationId = train.stationId;
-	let nextX = station.x;
-	let nextY = station.y;
-	let trackAngle = 0;
-
-	if (adjacencyMap !== undefined) {
-		const adj = adjacencyMap.get(train.stationId);
-		if (adj !== undefined) {
-			const nextId = train.direction === "상행" ? adj.prevs[0] : adj.nexts[0];
-			if (nextId !== undefined) {
-				const nextCoord = stationScreenMap.get(nextId);
-				if (nextCoord !== undefined) {
-					nextStationId = nextId;
-					nextX = nextCoord.x;
-					nextY = nextCoord.y;
-					trackAngle = Math.atan2(nextCoord.y - station.y, nextCoord.x - station.x);
-				}
-			}
-		}
-	}
+	const { nextStationId, nextX, nextY, trackAngle } =
+		adjacencyMap !== undefined
+			? resolveNextStation(train, stationScreenMap, adjacencyMap, station)
+			: { nextStationId: train.stationId, nextX: station.x, nextY: station.y, trackAngle: 0 };
 
 	// "출발" 상태 + 유효 스냅샷이 있으면 경과 시간으로 simProgress 역산
 	// → 페이지 리로드 직후 열차가 역 좌표에서 순간이동하는 현상 방지
-	let simProgress: number | undefined;
-	if (train.status === "출발" && snapshot !== undefined) {
-		simProgress = estimateSimProgress(train.stationId, snapshot);
-	}
+	const simProgress =
+		train.status === "출발" && snapshot !== undefined
+			? estimateSimProgress(train.stationId, snapshot)
+			: undefined;
 
 	return {
 		trainNo: train.trainNo,

@@ -234,7 +234,7 @@ function updateSelectionRing(
 const UNEXPECTED_MARKER_STYLE = {
 	fill: 0xff3333,
 	fontSize: 18,
-	fontWeight: "bold",
+	fontWeight: "bold" as const,
 	fontFamily: "sans-serif",
 	dropShadow: {
 		color: 0x000000,
