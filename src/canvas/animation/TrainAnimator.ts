@@ -18,10 +18,7 @@ function easeInOut(t: number): number {
  */
 function advanceTrainState(state: AnimatedTrainState, delta: number): void {
 	if (state.isMoving && state.progress < 1) {
-		state.progress = Math.min(
-			1,
-			state.progress + (delta * state.speedFactor) / SEGMENT_TRAVEL_MS,
-		);
+		state.progress = Math.min(1, state.progress + (delta * state.speedFactor) / SEGMENT_TRAVEL_MS);
 	}
 	const t = easeInOut(state.progress);
 	state.currentX = state.fromX + (state.toX - state.fromX) * t;
@@ -93,12 +90,8 @@ export class TrainAnimator {
 			const isDepart = train.status === "출발";
 			const simP = isDepart ? (train.simProgress ?? 0) : 0;
 			const t = easeInOut(simP);
-			const initX = isDepart
-				? train.stationX + (train.nextX - train.stationX) * t
-				: train.stationX;
-			const initY = isDepart
-				? train.stationY + (train.nextY - train.stationY) * t
-				: train.stationY;
+			const initX = isDepart ? train.stationX + (train.nextX - train.stationX) * t : train.stationX;
+			const initY = isDepart ? train.stationY + (train.nextY - train.stationY) * t : train.stationY;
 			this.states.set(train.trainNo, {
 				trainNo: train.trainNo,
 				line: train.line,
