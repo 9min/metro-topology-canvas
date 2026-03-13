@@ -204,7 +204,13 @@ export function MapCanvas() {
 					if (st !== undefined) currentRouteLines.add(st.line);
 				}
 			}
-			drawTrails(scene.trailLayer, trailGfx, trailMapRef.current, currentActiveLines, currentRouteLines);
+			drawTrails(
+				scene.trailLayer,
+				trailGfx,
+				trailMapRef.current,
+				currentActiveLines,
+				currentRouteLines,
+			);
 
 			// 혼잡도 히트맵 (조건부, 30프레임마다)
 			const isHeatmapOn = useMapStore.getState().heatmapEnabled;
